@@ -11,7 +11,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 
     <style>
-        /* --- BACKGROUND & FONTS --- */
         body {
             background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
             background-size: 400% 400%;
@@ -22,14 +21,11 @@
             font-family: 'Poppins', sans-serif;
             overflow: hidden;
         }
-
         @keyframes gradientBG {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
         }
-
-        /* --- GLASS CARD --- */
         .glass-card {
             background: rgba(255, 255, 255, 0.25);
             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
@@ -42,8 +38,6 @@
             position: relative;
             z-index: 10;
         }
-
-        /* --- INPUTS --- */
         .custom-input, .custom-select {
             background: rgba(255, 255, 255, 0.9);
             border: none;
@@ -51,16 +45,7 @@
             padding: 12px;
             width: 100%;
             color: #333;
-            font-size: 0.95rem;
         }
-        
-        .custom-input:focus, .custom-select:focus {
-            transform: scale(1.02);
-            box-shadow: 0 0 15px rgba(255,255,255,0.5);
-            outline: none;
-        }
-
-        /* --- BUTTON --- */
         .btn-grad {
             background-image: linear-gradient(to right, #FF512F 0%, #DD2476 51%, #FF512F 100%);
             text-transform: uppercase;
@@ -70,27 +55,19 @@
             border: none;
             border-radius: 10px;
             font-weight: bold;
-            letter-spacing: 1px;
             box-shadow: 0 0 20px #eee;
         }
-
         .btn-grad:hover {
             background-position: right center;
             color: #fff;
             transform: translateY(-3px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
         }
-        
-        /* Disabled Button Style (Loading ke waqt) */
         .btn-grad:disabled {
             background: #666;
             cursor: not-allowed;
             transform: none;
         }
-
         .form-label { color: #fff; font-weight: 500; margin-bottom: 5px; }
-
-        /* --- DECORATION --- */
         .circle {
             position: absolute;
             background: rgba(255, 255, 255, 0.1);
@@ -100,25 +77,11 @@
         .c1 { width: 200px; height: 200px; top: 10%; left: 10%; animation: float 6s ease-in-out infinite; }
         .c2 { width: 150px; height: 150px; bottom: 20%; right: 10%; animation: float 8s ease-in-out infinite; }
         @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-20px); } 100% { transform: translateY(0px); } }
-
-        /* --- FOOTER CREDIT --- */
         .footer-credit {
-            position: fixed;
-            bottom: 20px;
-            left: 0;
-            width: 100%;
-            text-align: center;
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 0.9rem;
-            z-index: 100;
-            pointer-events: none;
+            position: fixed; bottom: 20px; left: 0; width: 100%; text-align: center;
+            color: rgba(255, 255, 255, 0.7); font-size: 0.9rem; z-index: 100; pointer-events: none;
         }
-        .footer-credit span {
-            color: #fff;
-            font-weight: 700;
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
-        }
-
+        .footer-credit span { color: #fff; font-weight: 700; text-shadow: 0 0 10px rgba(255, 255, 255, 0.4); }
     </style>
 </head>
 <body>
@@ -129,33 +92,29 @@
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-md-8 col-lg-6">
-                
                 <div class="glass-card animate__animated animate__fadeInUp">
                     <div class="text-center mb-4">
-                        <i class="fa-solid fa-file-invoice-dollar fa-3x mb-3 text-white animate__animated animate__bounceIn"></i>
-                        <h3 style="font-weight: 800; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">Bank to Tally</h3>
+                        <i class="fa-solid fa-file-invoice-dollar fa-3x mb-3 text-white"></i>
+                        <h3 style="font-weight: 800;">Bank to Tally</h3>
                         <p>Convert Statements to Tally XML instantly</p>
                     </div>
                     
                     <form id="convertForm" action="/convert" method="post" enctype="multipart/form-data">
-                        
                         <div class="mb-3">
                             <label class="form-label"><i class="fa-solid fa-list-check"></i> Conversion Type</label>
-                            <select name="type" id="typeSelector" class="form-select custom-select" required>
+                            <select name="type" id="typeSelector" class="form-select custom-select">
                                 <option value="bank" selected>Bank Statement</option>
                                 <option value="sales">Sales Register</option>
                                 <option value="purchase">Purchase Register</option>
                             </select>
                         </div>
-
                         <div class="mb-3">
-                            <label for="file" class="form-label"><i class="fa-solid fa-cloud-arrow-up"></i> Upload File</label>
+                            <label class="form-label"><i class="fa-solid fa-cloud-arrow-up"></i> Upload File</label>
                             <input class="form-control custom-input" type="file" id="file" name="file" required accept=".xlsx, .xls, .pdf">
-                            <div class="form-text" style="color: #eee;">Supports Excel (.xlsx) & PDF formats</div>
+                            <div class="form-text" style="color: #eee;">Supports Excel & PDF</div>
                         </div>
-                        
                         <div class="mb-4">
-                            <label class="form-label"><i class="fa-solid fa-sliders"></i> Tally Ledger Settings</label>
+                            <label class="form-label"><i class="fa-solid fa-sliders"></i> Ledger Settings</label>
                             <div class="row g-2">
                                 <div class="col-md-6">
                                     <input type="text" name="main_ledger" id="mainLedger" class="form-control custom-input" placeholder="Bank Account" value="Bank Account">
@@ -165,7 +124,6 @@
                                 </div>
                             </div>
                         </div>
-
                         <div class="d-grid gap-2 mt-4">
                             <button type="submit" id="submitBtn" class="btn btn-grad btn-lg py-3">
                                 <i class="fa-solid fa-wand-magic-sparkles"></i> Convert Now
@@ -173,7 +131,6 @@
                         </div>
                     </form>
                 </div>
-
             </div>
         </div>
     </div>
@@ -185,43 +142,56 @@
     <script>
         const form = document.getElementById('convertForm');
         const btn = document.getElementById('submitBtn');
-        const typeSelector = document.getElementById('typeSelector');
-        const mainLedger = document.getElementById('mainLedger');
-        const suspenseLedger = document.getElementById('suspenseLedger');
-
-        // 1. Loading Animation Logic
+        
+        // --- MAGIC SCRIPT: DETECT DOWNLOAD COMPLETION ---
         form.addEventListener('submit', function() {
             const fileInput = document.getElementById('file');
-            if (fileInput.files.length === 0) return; // File nahi hai to ruko
+            if (fileInput.files.length === 0) return;
 
-            // Button Change
+            // 1. Show Loading State
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Processing... Please Wait';
             btn.style.opacity = "0.8";
             btn.style.cursor = "wait";
             
-            // Thoda ruk kar disable karo taaki form submit ho jaye
-            setTimeout(() => {
-                btn.disabled = true;
-            }, 100);
+            // Button disable karo (thodi der baad taaki form submit ho jaye)
+            setTimeout(() => { btn.disabled = true; }, 100);
+
+            // 2. Cookie Check Loop Shuru Karo
+            const downloadTimer = setInterval(function() {
+                if (document.cookie.includes('file_download_token=done')) {
+                    
+                    // A. Signal Mil Gaya! Loop Roko
+                    clearInterval(downloadTimer);
+                    
+                    // B. Cookie Delete Karo (Taaki agli baar ke liye clean rahe)
+                    document.cookie = "file_download_token=; max-age=0; path=/";
+                    
+                    // C. Form aur Button Reset Karo (Jaise user ne manga tha)
+                    btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Convert Now';
+                    btn.disabled = false;
+                    btn.style.opacity = "1";
+                    btn.style.cursor = "pointer";
+                    
+                    // D. Form Khali Karo
+                    form.reset(); 
+                }
+            }, 1000); // Har 1 second mein check karega
         });
 
-        // 2. Dropdown Ledger Logic
+        // Dropdown Logic
+        const typeSelector = document.getElementById('typeSelector');
+        const mainLedger = document.getElementById('mainLedger');
+        const suspenseLedger = document.getElementById('suspenseLedger');
         typeSelector.addEventListener('change', function() {
             if (this.value === 'sales') {
                 mainLedger.value = "Sales Account";
-                suspenseLedger.value = "Not Required";
-                suspenseLedger.disabled = true;
-                suspenseLedger.style.opacity = "0.6";
+                suspenseLedger.disabled = true; suspenseLedger.style.opacity = "0.6";
             } else if (this.value === 'purchase') {
                 mainLedger.value = "Purchase Account";
-                suspenseLedger.value = "Not Required";
-                suspenseLedger.disabled = true;
-                suspenseLedger.style.opacity = "0.6";
+                suspenseLedger.disabled = true; suspenseLedger.style.opacity = "0.6";
             } else {
                 mainLedger.value = "Bank Account";
-                suspenseLedger.value = "Suspense Account";
-                suspenseLedger.disabled = false;
-                suspenseLedger.style.opacity = "1";
+                suspenseLedger.disabled = false; suspenseLedger.style.opacity = "1";
             }
         });
     </script>
