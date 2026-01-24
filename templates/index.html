@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 
     <style>
-        /* --- 1. BACKGROUND ANIMATION --- */
+        /* --- BACKGROUND & FONTS --- */
         body {
             background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
             background-size: 400% 400%;
@@ -29,7 +29,7 @@
             100% { background-position: 0% 50%; }
         }
 
-        /* --- 2. GLASS CARD --- */
+        /* --- GLASS CARD --- */
         .glass-card {
             background: rgba(255, 255, 255, 0.25);
             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
@@ -43,13 +43,12 @@
             z-index: 10;
         }
 
-        /* --- 3. INPUTS (White Style) --- */
+        /* --- INPUTS --- */
         .custom-input, .custom-select {
             background: rgba(255, 255, 255, 0.9);
             border: none;
             border-radius: 10px;
             padding: 12px;
-            transition: all 0.3s;
             width: 100%;
             color: #333;
             font-size: 0.95rem;
@@ -61,7 +60,7 @@
             outline: none;
         }
 
-        /* --- 4. BUTTON (Gradient) --- */
+        /* --- BUTTON --- */
         .btn-grad {
             background-image: linear-gradient(to right, #FF512F 0%, #DD2476 51%, #FF512F 100%);
             text-transform: uppercase;
@@ -78,14 +77,20 @@
         .btn-grad:hover {
             background-position: right center;
             color: #fff;
-            text-decoration: none;
             transform: translateY(-3px);
             box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+        
+        /* Disabled Button Style (Loading ke waqt) */
+        .btn-grad:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .form-label { color: #fff; font-weight: 500; margin-bottom: 5px; }
 
-        /* --- 5. DECORATION CIRCLES --- */
+        /* --- DECORATION --- */
         .circle {
             position: absolute;
             background: rgba(255, 255, 255, 0.1);
@@ -96,7 +101,7 @@
         .c2 { width: 150px; height: 150px; bottom: 20%; right: 10%; animation: float 8s ease-in-out infinite; }
         @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-20px); } 100% { transform: translateY(0px); } }
 
-        /* --- 6. FOOTER CREDIT (Rahul) --- */
+        /* --- FOOTER CREDIT --- */
         .footer-credit {
             position: fixed;
             bottom: 20px;
@@ -107,8 +112,6 @@
             font-size: 0.9rem;
             z-index: 100;
             pointer-events: none;
-            font-family: 'Poppins', sans-serif;
-            letter-spacing: 0.5px;
         }
         .footer-credit span {
             color: #fff;
@@ -134,7 +137,7 @@
                         <p>Convert Statements to Tally XML instantly</p>
                     </div>
                     
-                    <form action="/convert" method="post" enctype="multipart/form-data">
+                    <form id="convertForm" action="/convert" method="post" enctype="multipart/form-data">
                         
                         <div class="mb-3">
                             <label class="form-label"><i class="fa-solid fa-list-check"></i> Conversion Type</label>
@@ -147,7 +150,7 @@
 
                         <div class="mb-3">
                             <label for="file" class="form-label"><i class="fa-solid fa-cloud-arrow-up"></i> Upload File</label>
-                            <input class="form-control custom-input" type="file" id="file" name="file" required accept=".xlsx, .pdf">
+                            <input class="form-control custom-input" type="file" id="file" name="file" required accept=".xlsx, .xls, .pdf">
                             <div class="form-text" style="color: #eee;">Supports Excel (.xlsx) & PDF formats</div>
                         </div>
                         
@@ -164,7 +167,7 @@
                         </div>
 
                         <div class="d-grid gap-2 mt-4">
-                            <button type="submit" class="btn btn-grad btn-lg py-3">
+                            <button type="submit" id="submitBtn" class="btn btn-grad btn-lg py-3">
                                 <i class="fa-solid fa-wand-magic-sparkles"></i> Convert Now
                             </button>
                         </div>
@@ -180,31 +183,42 @@
     </div>
 
     <script>
+        const form = document.getElementById('convertForm');
+        const btn = document.getElementById('submitBtn');
         const typeSelector = document.getElementById('typeSelector');
         const mainLedger = document.getElementById('mainLedger');
         const suspenseLedger = document.getElementById('suspenseLedger');
 
+        // 1. Loading Animation Logic
+        form.addEventListener('submit', function() {
+            const fileInput = document.getElementById('file');
+            if (fileInput.files.length === 0) return; // File nahi hai to ruko
+
+            // Button Change
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Processing... Please Wait';
+            btn.style.opacity = "0.8";
+            btn.style.cursor = "wait";
+            
+            // Thoda ruk kar disable karo taaki form submit ho jaye
+            setTimeout(() => {
+                btn.disabled = true;
+            }, 100);
+        });
+
+        // 2. Dropdown Ledger Logic
         typeSelector.addEventListener('change', function() {
-            const selectedValue = this.value;
-
-            if (selectedValue === 'sales') {
+            if (this.value === 'sales') {
                 mainLedger.value = "Sales Account";
-                mainLedger.placeholder = "Sales Account";
-                suspenseLedger.value = "Not Required (From Excel)";
+                suspenseLedger.value = "Not Required";
                 suspenseLedger.disabled = true;
                 suspenseLedger.style.opacity = "0.6";
-
-            } else if (selectedValue === 'purchase') {
+            } else if (this.value === 'purchase') {
                 mainLedger.value = "Purchase Account";
-                mainLedger.placeholder = "Purchase Account";
-                suspenseLedger.value = "Not Required (From Excel)";
+                suspenseLedger.value = "Not Required";
                 suspenseLedger.disabled = true;
                 suspenseLedger.style.opacity = "0.6";
-
             } else {
-                // Bank (Default)
                 mainLedger.value = "Bank Account";
-                mainLedger.placeholder = "Bank Account";
                 suspenseLedger.value = "Suspense Account";
                 suspenseLedger.disabled = false;
                 suspenseLedger.style.opacity = "1";
