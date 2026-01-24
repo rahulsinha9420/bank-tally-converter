@@ -23,80 +23,60 @@ def generate_tally_xml(df, output_path, conversion_type, main_ledger_name, suspe
         tally_msg = ET.SubElement(req_data, "TALLYMESSAGE", {"xmlns:UDF": "TallyUDF"})
         
         # --- Common Data Cleaning ---
-        # Date Handling
         try:
             date_obj = pd.to_datetime(row.get('Date'), dayfirst=True)
             tally_date = date_obj.strftime('%Y%m%d')
         except:
             tally_date = "20240401"
             
-        # Amount Handling (Supports 'Amount', 'Debit', 'Credit' columns)
         try:
             if 'Amount' in df.columns:
                 amount = float(str(row['Amount']).replace(',', ''))
             else:
-                # Bank files ke liye
                 debit = float(str(row.get('Debit', 0)).replace(',', ''))
                 credit = float(str(row.get('Credit', 0)).replace(',', ''))
                 amount = debit if debit > 0 else credit
         except:
             amount = 0
 
-        # Narration / Party Name
         narration = str(row.get('Narration', ''))
         party_name_from_excel = str(row.get('Party', str(row.get('Particulars', ''))))
 
-        # ==========================================
-        # LOGIC 1: SALES ENTRY
-        # ==========================================
         if conversion_type == 'sales':
             vch_type = "Sales"
-            
             voucher = ET.SubElement(tally_msg, "VOUCHER", {"VCHTYPE": vch_type, "ACTION": "Create"})
             ET.SubElement(voucher, "DATE").text = tally_date
             ET.SubElement(voucher, "NARRATION").text = narration
             ET.SubElement(voucher, "VOUCHERTYPENAME").text = vch_type
 
-            # Entry 1: Party Ledger (DEBIT for Sales)
-            l1 = ET.SubElement(voucher, "ALLLEDGERENTRIES.LIST")
-            ET.SubElement(l1, "LEDGERNAME").text = party_name_from_excel # Excel se Party ka naam
-            ET.SubElement(l1, "ISDEEMEDPOSITIVE").text = "Yes" # Debit
-            ET.SubElement(l1, "AMOUNT").text = str(-amount) # Tally Debit is Negative
-
-            # Entry 2: Sales Ledger (CREDIT)
-            l2 = ET.SubElement(voucher, "ALLLEDGERENTRIES.LIST")
-            ET.SubElement(l2, "LEDGERNAME").text = main_ledger_name # Input box se (e.g. Sales A/c)
-            ET.SubElement(l2, "ISDEEMEDPOSITIVE").text = "No" # Credit
-            ET.SubElement(l2, "AMOUNT").text = str(amount)
-
-        # ==========================================
-        # LOGIC 2: PURCHASE ENTRY
-        # ==========================================
-        elif conversion_type == 'purchase':
-            vch_type = "Purchase"
-            
-            voucher = ET.SubElement(tally_msg, "VOUCHER", {"VCHTYPE": vch_type, "ACTION": "Create"})
-            ET.SubElement(voucher, "DATE").text = tally_date
-            ET.SubElement(voucher, "NARRATION").text = narration
-            ET.SubElement(voucher, "VOUCHERTYPENAME").text = vch_type
-
-            # Entry 1: Party Ledger (CREDIT for Purchase)
             l1 = ET.SubElement(voucher, "ALLLEDGERENTRIES.LIST")
             ET.SubElement(l1, "LEDGERNAME").text = party_name_from_excel
-            ET.SubElement(l1, "ISDEEMEDPOSITIVE").text = "No" # Credit
+            ET.SubElement(l1, "ISDEEMEDPOSITIVE").text = "Yes"
+            ET.SubElement(l1, "AMOUNT").text = str(-amount)
+
+            l2 = ET.SubElement(voucher, "ALLLEDGERENTRIES.LIST")
+            ET.SubElement(l2, "LEDGERNAME").text = main_ledger_name
+            ET.SubElement(l2, "ISDEEMEDPOSITIVE").text = "No"
+            ET.SubElement(l2, "AMOUNT").text = str(amount)
+
+        elif conversion_type == 'purchase':
+            vch_type = "Purchase"
+            voucher = ET.SubElement(tally_msg, "VOUCHER", {"VCHTYPE": vch_type, "ACTION": "Create"})
+            ET.SubElement(voucher, "DATE").text = tally_date
+            ET.SubElement(voucher, "NARRATION").text = narration
+            ET.SubElement(voucher, "VOUCHERTYPENAME").text = vch_type
+
+            l1 = ET.SubElement(voucher, "ALLLEDGERENTRIES.LIST")
+            ET.SubElement(l1, "LEDGERNAME").text = party_name_from_excel
+            ET.SubElement(l1, "ISDEEMEDPOSITIVE").text = "No"
             ET.SubElement(l1, "AMOUNT").text = str(amount) 
 
-            # Entry 2: Purchase Ledger (DEBIT)
             l2 = ET.SubElement(voucher, "ALLLEDGERENTRIES.LIST")
-            ET.SubElement(l2, "LEDGERNAME").text = main_ledger_name # Input box se (e.g. Purchase A/c)
-            ET.SubElement(l2, "ISDEEMEDPOSITIVE").text = "Yes" # Debit
+            ET.SubElement(l2, "LEDGERNAME").text = main_ledger_name
+            ET.SubElement(l2, "ISDEEMEDPOSITIVE").text = "Yes"
             ET.SubElement(l2, "AMOUNT").text = str(-amount)
 
-        # ==========================================
-        # LOGIC 3: BANK STATEMENT (Purana Logic)
-        # ==========================================
         else:
-            # Bank Logic (Receipt/Payment based on Dr/Cr)
             debit_amt = float(str(row.get('Debit', 0)).replace(',', ''))
             if debit_amt > 0:
                 vch_type = "Payment"
@@ -114,14 +94,12 @@ def generate_tally_xml(df, output_path, conversion_type, main_ledger_name, suspe
             ET.SubElement(voucher, "NARRATION").text = narration
             ET.SubElement(voucher, "VOUCHERTYPENAME").text = vch_type
 
-            # Party/Suspense Side
             l1 = ET.SubElement(voucher, "ALLLEDGERENTRIES.LIST")
             ET.SubElement(l1, "LEDGERNAME").text = suspense_ledger_name
             ET.SubElement(l1, "ISDEEMEDPOSITIVE").text = is_party_debit
             amt1 = -final_amt if is_party_debit == "Yes" else final_amt
             ET.SubElement(l1, "AMOUNT").text = str(amt1)
 
-            # Bank Side
             l2 = ET.SubElement(voucher, "ALLLEDGERENTRIES.LIST")
             ET.SubElement(l2, "LEDGERNAME").text = main_ledger_name
             ET.SubElement(l2, "ISDEEMEDPOSITIVE").text = is_bank_credit
@@ -141,10 +119,9 @@ def convert():
     file = request.files['file']
     if file.filename == '': return "No file selected"
 
-    # Fetch User Inputs
-    conversion_type = request.form.get('type') # sales, purchase, or bank
-    main_ledger = request.form.get('main_ledger', 'Sales Account') # Bank Name or Sales/Purchase A/c
-    suspense_ledger = request.form.get('suspense_ledger', 'Suspense Account') # Only for Bank
+    conversion_type = request.form.get('type')
+    main_ledger = request.form.get('main_ledger', 'Sales Account')
+    suspense_ledger = request.form.get('suspense_ledger', 'Suspense Account')
 
     if file:
         input_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
@@ -152,8 +129,10 @@ def convert():
         file.save(input_path)
         
         try:
-            df = pd.read_excel(input_path)
-            df = df.fillna('') # Empty cells handle karna
+            # --- YAHAN CHANGE KIYA HAI ---
+            # Engine 'openpyxl' bata diya taaki error na aaye
+            df = pd.read_excel(input_path, engine='openpyxl') 
+            df = df.fillna('')
             
             generate_tally_xml(df, output_path, conversion_type, main_ledger, suspense_ledger)
             
