@@ -1,6 +1,6 @@
 flask
 pandas
 openpyxl
-pdfplumber
 gunicorn
 xlrd
+pdfplumber

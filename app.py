@@ -2,40 +2,45 @@ import os
 import pandas as pd
 from flask import Flask, render_template, request, send_file
 import xml.etree.ElementTree as ET
-import pdfplumber  # PDF padhne ke liye
+import pdfplumber  # PDF library
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# --- PDF PARSER FUNCTION ---
+# --- 1. PDF HANDLING FUNCTION ---
 def parse_pdf_to_dataframe(pdf_path):
     all_data = []
-    with pdfplumber.open(pdf_path) as pdf:
-        for page in pdf.pages:
-            # Page se tables nikalo
-            tables = page.extract_tables()
-            for table in tables:
-                for row in table:
-                    # Khali rows hatao aur data saaf karo
-                    cleaned_row = [str(cell).strip() if cell else '' for cell in row]
-                    # Check karo row khali to nahi
-                    if any(cleaned_row):
-                        all_data.append(cleaned_row)
-    
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            for page in pdf.pages:
+                tables = page.extract_tables()
+                if tables:
+                    for table in tables:
+                        for row in table:
+                            # Safai: None values ko empty string banao
+                            cleaned_row = [str(cell).strip() if cell is not None else '' for cell in row]
+                            # Khali rows ko ignore karo
+                            if any(cleaned_row): 
+                                all_data.append(cleaned_row)
+    except Exception as e:
+        print(f"PDF Error: {e}")
+        return pd.DataFrame() # Return empty if fail
+
     if not all_data:
         return pd.DataFrame()
 
-    # Pehli row ko Header man lete hain
+    # Pehli row ko Header maano
     headers = all_data[0]
     data = all_data[1:]
     
-    # DataFrame banao
-    df = pd.DataFrame(data, columns=headers)
-    return df
+    # Headers unique hone chahiye (Duplicate columns fix)
+    headers = [f"{col}_{i}" if headers.count(col) > 1 else col for i, col in enumerate(headers)]
 
-# --- XML GENERATOR ---
+    return pd.DataFrame(data, columns=headers)
+
+# --- 2. XML GENERATOR FUNCTION ---
 def generate_tally_xml(df, output_path, conversion_type, main_ledger_name, suspense_ledger_name):
     envelope = ET.Element("ENVELOPE")
     header = ET.SubElement(envelope, "HEADER")
@@ -47,14 +52,14 @@ def generate_tally_xml(df, output_path, conversion_type, main_ledger_name, suspe
     ET.SubElement(req_desc, "REPORTNAME").text = "Vouchers"
     req_data = ET.SubElement(import_data, "REQUESTDATA")
     
-    # Column Names ko Standardize karo (Case Insensitive)
-    df.columns = [c.strip() for c in df.columns]
+    # Column names ko lowercase aur strip karo taaki matching aasan ho
+    df.columns = [str(c).strip() for c in df.columns]
     
     for index, row in df.iterrows():
         tally_msg = ET.SubElement(req_data, "TALLYMESSAGE", {"xmlns:UDF": "TallyUDF"})
         
-        # --- SMART DATA MAPPING ---
-        # Date dhundo (Date, txn date, value date etc.)
+        # --- SMART COLUMN MAPPING ---
+        # Date dhoondo
         date_val = ""
         for col in df.columns:
             if "date" in col.lower():
@@ -65,55 +70,56 @@ def generate_tally_xml(df, output_path, conversion_type, main_ledger_name, suspe
             date_obj = pd.to_datetime(date_val, dayfirst=True)
             tally_date = date_obj.strftime('%Y%m%d')
         except:
-            tally_date = "20240401" # Default agar date na mile
+            tally_date = "20240401" # Default Date
 
-        # Amount Dhundo
+        # Amount Logic (Debit/Credit/Amount columns)
         amount = 0
         debit = 0
         credit = 0
         
-        # Agar 'Debit' aur 'Credit' columns alag hain
         for col in df.columns:
-            if "debit" in col.lower() or "dr" in col.lower():
-                try: debit = float(str(row[col]).replace(',', '').replace('Dr', '').strip())
-                except: pass
-            if "credit" in col.lower() or "cr" in col.lower():
-                try: credit = float(str(row[col]).replace(',', '').replace('Cr', '').strip())
-                except: pass
-                
+            c_low = col.lower()
+            val = str(row[col]).replace(',', '').strip()
+            if not val: continue
+            
+            try:
+                if "debit" in c_low or "dr" in c_low or "withdrawal" in c_low:
+                    debit = float(val)
+                elif "credit" in c_low or "cr" in c_low or "deposit" in c_low:
+                    credit = float(val)
+                elif "amount" in c_low:
+                    amount = float(val)
+            except:
+                pass
+
         if debit > 0: amount = debit
         elif credit > 0: amount = credit
-        else:
-            # Agar sirf 'Amount' column hai
-            for col in df.columns:
-                if "amount" in col.lower():
-                    try: amount = float(str(row[col]).replace(',', ''))
-                    except: pass
-                    break
-
-        # Narration / Party
+        
+        # Narration / Party Name Logic
         narration = ""
         party_name = ""
+        
+        # Pehle Party column dhoondo
+        for col in df.columns:
+            if "party" in col.lower() or "name" in col.lower():
+                party_name = str(row[col])
+                break
+        
+        # Agar Party nahi mila, to Narration/Particulars dhoondo
         for col in df.columns:
             if "particular" in col.lower() or "description" in col.lower() or "narration" in col.lower():
                 narration = str(row[col])
-                party_name = str(row[col]) # Default Party Name = Narration
-                break
-        
-        # Agar Party column alag se hai
-        for col in df.columns:
-            if "party" in col.lower():
-                party_name = str(row[col])
+                if not party_name: party_name = narration # Fallback
                 break
 
-        # XML Structure (Wahi purana logic)
+        # --- XML CREATION ---
         if conversion_type == 'sales':
             vch_type = "Sales"
             voucher = ET.SubElement(tally_msg, "VOUCHER", {"VCHTYPE": vch_type, "ACTION": "Create"})
             ET.SubElement(voucher, "DATE").text = tally_date
             ET.SubElement(voucher, "NARRATION").text = narration
             ET.SubElement(voucher, "VOUCHERTYPENAME").text = vch_type
-            
+
             l1 = ET.SubElement(voucher, "ALLLEDGERENTRIES.LIST")
             ET.SubElement(l1, "LEDGERNAME").text = party_name
             ET.SubElement(l1, "ISDEEMEDPOSITIVE").text = "Yes"
@@ -130,7 +136,7 @@ def generate_tally_xml(df, output_path, conversion_type, main_ledger_name, suspe
             ET.SubElement(voucher, "DATE").text = tally_date
             ET.SubElement(voucher, "NARRATION").text = narration
             ET.SubElement(voucher, "VOUCHERTYPENAME").text = vch_type
-            
+
             l1 = ET.SubElement(voucher, "ALLLEDGERENTRIES.LIST")
             ET.SubElement(l1, "LEDGERNAME").text = party_name
             ET.SubElement(l1, "ISDEEMEDPOSITIVE").text = "No"
@@ -141,8 +147,7 @@ def generate_tally_xml(df, output_path, conversion_type, main_ledger_name, suspe
             ET.SubElement(l2, "ISDEEMEDPOSITIVE").text = "Yes"
             ET.SubElement(l2, "AMOUNT").text = str(-amount)
 
-        else:
-            # Bank Logic
+        else: # Bank
             if debit > 0:
                 vch_type = "Payment"
                 is_party_debit = "Yes"
@@ -174,13 +179,14 @@ def generate_tally_xml(df, output_path, conversion_type, main_ledger_name, suspe
     tree = ET.ElementTree(envelope)
     tree.write(output_path, encoding="utf-8", xml_declaration=True)
 
+# --- 3. ROUTES ---
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/convert', methods=['POST'])
 def convert():
-    if 'file' not in request.files: return "No file"
+    if 'file' not in request.files: return "No file uploaded"
     file = request.files['file']
     if file.filename == '': return "No file selected"
 
@@ -194,30 +200,34 @@ def convert():
         file.save(input_path)
         
         try:
-            # --- FILE FORMAT DETECTION ---
             filename = file.filename.lower()
-            
+            df = pd.DataFrame()
+
+            # --- FILE FORMAT CHECK ---
             if filename.endswith('.pdf'):
-                # Agar PDF hai to PDF parser use karo
                 df = parse_pdf_to_dataframe(input_path)
+                if df.empty:
+                    return "Error: PDF mein koi table nahi mila. Kripya Excel convert karke try karein."
+            
             elif filename.endswith(('.xls', '.xlsx')):
-                # Agar Excel hai
-                engine = 'xlrd' if filename.endswith('.xls') else 'openpyxl'
-                df = pd.read_excel(input_path, engine=engine)
+                # Old vs New Excel Logic
+                if filename.endswith('.xls'):
+                    df = pd.read_excel(input_path, engine='xlrd')
+                else:
+                    df = pd.read_excel(input_path, engine='openpyxl')
             else:
-                return "Unsupported file format. Please upload PDF or Excel."
+                return "Error: Invalid file format. Only PDF, XLS, XLSX supported."
 
             df = df.fillna('')
             
-            # Agar data khali hai
-            if df.empty:
-                return "Error: Could not extract table from this PDF. Try converting it to Excel first."
-
+            # Generate XML
             generate_tally_xml(df, output_path, conversion_type, main_ledger, suspense_ledger)
             
             return send_file(output_path, as_attachment=True)
+            
         except Exception as e:
-            return f"Error: {str(e)}"
+            # Yeh error screen par dikhega instead of crashing
+            return f"System Error: {str(e)} <br><br> Tip: File format check karein ya Excel use karein."
 
 if __name__ == '__main__':
     app.run(debug=True)
