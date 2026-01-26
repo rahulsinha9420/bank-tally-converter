@@ -113,17 +113,16 @@
                             <input class="form-control custom-input" type="file" id="file" name="file" required accept=".xlsx, .xls, .pdf">
                             <div class="form-text" style="color: #eee;">Supports Excel & PDF</div>
                         </div>
+                        
                         <div class="mb-4">
-                            <label class="form-label"><i class="fa-solid fa-sliders"></i> Ledger Settings</label>
-                            <div class="row g-2">
-                                <div class="col-md-6">
-                                    <input type="text" name="main_ledger" id="mainLedger" class="form-control custom-input" placeholder="Bank Account" value="Bank Account">
-                                </div>
-                                <div class="col-md-6">
-                                    <input type="text" name="suspense_ledger" id="suspenseLedger" class="form-control custom-input" placeholder="Suspense Account" value="Suspense Account">
+                            <label class="form-label"><i class="fa-solid fa-building-columns"></i> Bank Name (As per tally)</label>
+                            <div class="row">
+                                <div class="col-12">
+                                    <input type="text" name="main_ledger" id="mainLedger" class="form-control custom-input" placeholder="e.g. HDFC Bank" value="Bank Account">
                                 </div>
                             </div>
                         </div>
+
                         <div class="d-grid gap-2 mt-4">
                             <button type="submit" id="submitBtn" class="btn btn-grad btn-lg py-3">
                                 <i class="fa-solid fa-wand-magic-sparkles"></i> Convert Now
@@ -143,55 +142,43 @@
         const form = document.getElementById('convertForm');
         const btn = document.getElementById('submitBtn');
         
-        // --- MAGIC SCRIPT: DETECT DOWNLOAD COMPLETION ---
+        // --- 1. DOWNLOAD DETECTION SCRIPT ---
         form.addEventListener('submit', function() {
             const fileInput = document.getElementById('file');
             if (fileInput.files.length === 0) return;
 
-            // 1. Show Loading State
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Processing... Please Wait';
             btn.style.opacity = "0.8";
             btn.style.cursor = "wait";
-            
-            // Button disable karo (thodi der baad taaki form submit ho jaye)
             setTimeout(() => { btn.disabled = true; }, 100);
 
-            // 2. Cookie Check Loop Shuru Karo
             const downloadTimer = setInterval(function() {
                 if (document.cookie.includes('file_download_token=done')) {
-                    
-                    // A. Signal Mil Gaya! Loop Roko
                     clearInterval(downloadTimer);
-                    
-                    // B. Cookie Delete Karo (Taaki agli baar ke liye clean rahe)
                     document.cookie = "file_download_token=; max-age=0; path=/";
-                    
-                    // C. Form aur Button Reset Karo (Jaise user ne manga tha)
                     btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Convert Now';
                     btn.disabled = false;
                     btn.style.opacity = "1";
                     btn.style.cursor = "pointer";
-                    
-                    // D. Form Khali Karo
                     form.reset(); 
                 }
-            }, 1000); // Har 1 second mein check karega
+            }, 1000); 
         });
 
-        // Dropdown Logic
+        // --- 2. Dropdown Logic (Suspense hat gaya, bas Bank Name update hoga) ---
         const typeSelector = document.getElementById('typeSelector');
         const mainLedger = document.getElementById('mainLedger');
-        const suspenseLedger = document.getElementById('suspenseLedger');
+        
         typeSelector.addEventListener('change', function() {
             if (this.value === 'sales') {
                 mainLedger.value = "Sales Account";
-                suspenseLedger.disabled = true; suspenseLedger.style.opacity = "0.6";
+                mainLedger.placeholder = "Sales Ledger Name";
             } else if (this.value === 'purchase') {
                 mainLedger.value = "Purchase Account";
-                suspenseLedger.disabled = true; suspenseLedger.style.opacity = "0.6";
+                mainLedger.placeholder = "Purchase Ledger Name";
             } else {
                 mainLedger.value = "Bank Account";
-                suspenseLedger.disabled = false; suspenseLedger.style.opacity = "1";
+                mainLedger.placeholder = "e.g. HDFC Bank";
             }
         });
     </script>

@@ -37,7 +37,10 @@ def parse_pdf_to_dataframe(pdf_path):
     return pd.DataFrame(data, columns=headers)
 
 # --- 2. XML GENERATOR ---
-def generate_tally_xml(df, output_path, conversion_type, main_ledger_name, suspense_ledger_name):
+def generate_tally_xml(df, output_path, conversion_type, main_ledger_name):
+    # Note: suspense_ledger_name ab parameter mein nahi hai, hum hardcode karenge
+    suspense_ledger_name = "Suspense Account"
+    
     envelope = ET.Element("ENVELOPE")
     header = ET.SubElement(envelope, "HEADER")
     ET.SubElement(header, "TALLYREQUEST").text = "Import Data"
@@ -45,9 +48,24 @@ def generate_tally_xml(df, output_path, conversion_type, main_ledger_name, suspe
     body = ET.SubElement(envelope, "BODY")
     import_data = ET.SubElement(body, "IMPORTDATA")
     req_desc = ET.SubElement(import_data, "REQUESTDESC")
-    ET.SubElement(req_desc, "REPORTNAME").text = "Vouchers"
+    ET.SubElement(req_desc, "REPORTNAME").text = "All Masters" # Change for Master + Vouchers
     req_data = ET.SubElement(import_data, "REQUESTDATA")
     
+    # --- STEP 1: AUTO-CREATE SUSPENSE LEDGER (MASTER) ---
+    # Yeh code Tally ko bolega ki 'Suspense Account' create karo agar nahi hai
+    if conversion_type == 'bank':
+        tally_msg_master = ET.SubElement(req_data, "TALLYMESSAGE", {"xmlns:UDF": "TallyUDF"})
+        ledger = ET.SubElement(tally_msg_master, "LEDGER", {"NAME": suspense_ledger_name, "ACTION": "Create"})
+        
+        name_list = ET.SubElement(ledger, "NAME.LIST")
+        ET.SubElement(name_list, "NAME").text = suspense_ledger_name
+        
+        # Parent Group 'Suspense A/c' hota hai Tally mein default
+        ET.SubElement(ledger, "PARENT").text = "Suspense A/c" 
+        ET.SubElement(ledger, "ISBILLWISEON").text = "No"
+        ET.SubElement(ledger, "AFFECTSSTOCK").text = "No"
+
+    # --- STEP 2: VOUCHERS ---
     df.columns = [str(c).strip() for c in df.columns]
     
     for index, row in df.iterrows():
@@ -101,6 +119,7 @@ def generate_tally_xml(df, output_path, conversion_type, main_ledger_name, suspe
             is_party_pos = "No"
             is_main_pos = "Yes"
         else:
+            # Bank Logic
             if debit > 0:
                 vch_type = "Payment"
                 is_party_debit = "Yes"
@@ -115,17 +134,20 @@ def generate_tally_xml(df, output_path, conversion_type, main_ledger_name, suspe
             ET.SubElement(voucher, "NARRATION").text = narration
             ET.SubElement(voucher, "VOUCHERTYPENAME").text = vch_type
             
+            # Entry 1: Suspense Account (Fixed)
             l1 = ET.SubElement(voucher, "ALLLEDGERENTRIES.LIST")
             ET.SubElement(l1, "LEDGERNAME").text = suspense_ledger_name
             ET.SubElement(l1, "ISDEEMEDPOSITIVE").text = is_party_debit
             ET.SubElement(l1, "AMOUNT").text = str(-amount if is_party_debit == "Yes" else amount)
 
+            # Entry 2: Main Bank Account (User Provided)
             l2 = ET.SubElement(voucher, "ALLLEDGERENTRIES.LIST")
             ET.SubElement(l2, "LEDGERNAME").text = main_ledger_name
             ET.SubElement(l2, "ISDEEMEDPOSITIVE").text = is_bank_credit
             ET.SubElement(l2, "AMOUNT").text = str(-amount if is_bank_credit == "Yes" else amount)
             continue 
 
+        # Sales/Purchase Logic
         voucher = ET.SubElement(tally_msg, "VOUCHER", {"VCHTYPE": vch_type, "ACTION": "Create"})
         ET.SubElement(voucher, "DATE").text = tally_date
         ET.SubElement(voucher, "NARRATION").text = narration
@@ -157,8 +179,8 @@ def convert():
         if file.filename == '': return "No file selected"
 
         conversion_type = request.form.get('type')
-        main_ledger = request.form.get('main_ledger', 'Sales Account')
-        suspense_ledger = request.form.get('suspense_ledger', 'Suspense Account')
+        # Suspense Ledger ab user se nahi maangenge
+        main_ledger = request.form.get('main_ledger', 'Bank Account')
 
         if file:
             filename = secure_filename(file.filename)
@@ -180,11 +202,9 @@ def convert():
                 return "Format Error: Use PDF or Excel."
 
             df = df.fillna('')
-            generate_tally_xml(df, output_path, conversion_type, main_ledger, suspense_ledger)
+            generate_tally_xml(df, output_path, conversion_type, main_ledger)
             
-            # --- MAGIC FIX: Cookie Set Karna ---
             response = make_response(send_file(output_path, as_attachment=True))
-            # Yeh cookie batayegi ki download complete ho gaya
             response.set_cookie('file_download_token', 'done', max_age=60, path='/')
             return response
             
