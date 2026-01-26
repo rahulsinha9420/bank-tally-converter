@@ -38,7 +38,6 @@ def parse_pdf_to_dataframe(pdf_path):
 
 # --- 2. XML GENERATOR ---
 def generate_tally_xml(df, output_path, conversion_type, main_ledger_name):
-    # Note: suspense_ledger_name ab parameter mein nahi hai, hum hardcode karenge
     suspense_ledger_name = "Suspense Account"
     
     envelope = ET.Element("ENVELOPE")
@@ -48,24 +47,20 @@ def generate_tally_xml(df, output_path, conversion_type, main_ledger_name):
     body = ET.SubElement(envelope, "BODY")
     import_data = ET.SubElement(body, "IMPORTDATA")
     req_desc = ET.SubElement(import_data, "REQUESTDESC")
-    ET.SubElement(req_desc, "REPORTNAME").text = "All Masters" # Change for Master + Vouchers
+    ET.SubElement(req_desc, "REPORTNAME").text = "All Masters"
     req_data = ET.SubElement(import_data, "REQUESTDATA")
     
-    # --- STEP 1: AUTO-CREATE SUSPENSE LEDGER (MASTER) ---
-    # Yeh code Tally ko bolega ki 'Suspense Account' create karo agar nahi hai
+    # --- AUTO-CREATE SUSPENSE LEDGER ---
     if conversion_type == 'bank':
         tally_msg_master = ET.SubElement(req_data, "TALLYMESSAGE", {"xmlns:UDF": "TallyUDF"})
         ledger = ET.SubElement(tally_msg_master, "LEDGER", {"NAME": suspense_ledger_name, "ACTION": "Create"})
-        
         name_list = ET.SubElement(ledger, "NAME.LIST")
         ET.SubElement(name_list, "NAME").text = suspense_ledger_name
-        
-        # Parent Group 'Suspense A/c' hota hai Tally mein default
         ET.SubElement(ledger, "PARENT").text = "Suspense A/c" 
         ET.SubElement(ledger, "ISBILLWISEON").text = "No"
         ET.SubElement(ledger, "AFFECTSSTOCK").text = "No"
 
-    # --- STEP 2: VOUCHERS ---
+    # --- VOUCHERS ---
     df.columns = [str(c).strip() for c in df.columns]
     
     for index, row in df.iterrows():
@@ -119,7 +114,6 @@ def generate_tally_xml(df, output_path, conversion_type, main_ledger_name):
             is_party_pos = "No"
             is_main_pos = "Yes"
         else:
-            # Bank Logic
             if debit > 0:
                 vch_type = "Payment"
                 is_party_debit = "Yes"
@@ -134,20 +128,17 @@ def generate_tally_xml(df, output_path, conversion_type, main_ledger_name):
             ET.SubElement(voucher, "NARRATION").text = narration
             ET.SubElement(voucher, "VOUCHERTYPENAME").text = vch_type
             
-            # Entry 1: Suspense Account (Fixed)
             l1 = ET.SubElement(voucher, "ALLLEDGERENTRIES.LIST")
             ET.SubElement(l1, "LEDGERNAME").text = suspense_ledger_name
             ET.SubElement(l1, "ISDEEMEDPOSITIVE").text = is_party_debit
             ET.SubElement(l1, "AMOUNT").text = str(-amount if is_party_debit == "Yes" else amount)
 
-            # Entry 2: Main Bank Account (User Provided)
             l2 = ET.SubElement(voucher, "ALLLEDGERENTRIES.LIST")
             ET.SubElement(l2, "LEDGERNAME").text = main_ledger_name
             ET.SubElement(l2, "ISDEEMEDPOSITIVE").text = is_bank_credit
             ET.SubElement(l2, "AMOUNT").text = str(-amount if is_bank_credit == "Yes" else amount)
             continue 
 
-        # Sales/Purchase Logic
         voucher = ET.SubElement(tally_msg, "VOUCHER", {"VCHTYPE": vch_type, "ACTION": "Create"})
         ET.SubElement(voucher, "DATE").text = tally_date
         ET.SubElement(voucher, "NARRATION").text = narration
@@ -179,13 +170,21 @@ def convert():
         if file.filename == '': return "No file selected"
 
         conversion_type = request.form.get('type')
-        # Suspense Ledger ab user se nahi maangenge
         main_ledger = request.form.get('main_ledger', 'Bank Account')
 
         if file:
+            # Secure Filename
             filename = secure_filename(file.filename)
+            
+            # --- NAME CHANGE LOGIC ---
+            # Extension hata kar base name nikalo (e.g., 'Statement.pdf' -> 'Statement')
+            base_name = os.path.splitext(filename)[0]
+            # Naya naam banao .xml ke saath
+            xml_filename = f"{base_name}.xml"
+            
             input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            output_path = os.path.join(app.config['UPLOAD_FOLDER'], "Tally_Import.xml")
+            # Output path ab dynamic hoga
+            output_path = os.path.join(app.config['UPLOAD_FOLDER'], xml_filename)
             
             file.save(input_path)
             
@@ -204,6 +203,7 @@ def convert():
             df = df.fillna('')
             generate_tally_xml(df, output_path, conversion_type, main_ledger)
             
+            # Download karte waqt naya naam use hoga
             response = make_response(send_file(output_path, as_attachment=True))
             response.set_cookie('file_download_token', 'done', max_age=60, path='/')
             return response
