@@ -1,8 +1,9 @@
 import os
 import pandas as pd
-from flask import Flask, render_template, request, send_file, make_response
+from flask import Flask, render_template, request, send_file, make_response, jsonify
 import xml.etree.ElementTree as ET
 import pdfplumber
+from pdfminer.pdfdocument import PDFPasswordIncorrect
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
@@ -12,11 +13,12 @@ UPLOAD_FOLDER = '/tmp/uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# --- 1. PDF PARSER ---
-def parse_pdf_to_dataframe(pdf_path):
+# --- 1. PDF PARSER (With Password Support) ---
+def parse_pdf_to_dataframe(pdf_path, pdf_password=None):
     all_data = []
     try:
-        with pdfplumber.open(pdf_path) as pdf:
+        # Password handling logic
+        with pdfplumber.open(pdf_path, password=pdf_password or "") as pdf:
             for page in pdf.pages:
                 tables = page.extract_tables()
                 if tables:
@@ -25,7 +27,13 @@ def parse_pdf_to_dataframe(pdf_path):
                             cleaned_row = [str(cell).strip() if cell is not None else '' for cell in row]
                             if any(cleaned_row): 
                                 all_data.append(cleaned_row)
+    except PDFPasswordIncorrect:
+        # Agar password galat hai ya chahiye, to ye error raise karo
+        raise ValueError("PASSWORD_REQUIRED")
     except Exception as e:
+        # Koi aur error ho (jaise wrong password format)
+        if "password" in str(e).lower():
+            raise ValueError("PASSWORD_REQUIRED")
         print(f"PDF Error: {e}")
         return pd.DataFrame()
 
@@ -50,7 +58,7 @@ def generate_tally_xml(df, output_path, conversion_type, main_ledger_name):
     ET.SubElement(req_desc, "REPORTNAME").text = "All Masters"
     req_data = ET.SubElement(import_data, "REQUESTDATA")
     
-    # --- AUTO-CREATE SUSPENSE LEDGER ---
+    # Auto-Create Suspense Logic
     if conversion_type == 'bank':
         tally_msg_master = ET.SubElement(req_data, "TALLYMESSAGE", {"xmlns:UDF": "TallyUDF"})
         ledger = ET.SubElement(tally_msg_master, "LEDGER", {"NAME": suspense_ledger_name, "ACTION": "Create"})
@@ -60,7 +68,7 @@ def generate_tally_xml(df, output_path, conversion_type, main_ledger_name):
         ET.SubElement(ledger, "ISBILLWISEON").text = "No"
         ET.SubElement(ledger, "AFFECTSSTOCK").text = "No"
 
-    # --- VOUCHERS ---
+    # Vouchers Logic
     df.columns = [str(c).strip() for c in df.columns]
     
     for index, row in df.iterrows():
@@ -165,25 +173,23 @@ def index():
 @app.route('/convert', methods=['POST'])
 def convert():
     try:
-        if 'file' not in request.files: return "No file uploaded"
+        if 'file' not in request.files: 
+            return jsonify({'error': "No file uploaded"}), 400
+        
         file = request.files['file']
-        if file.filename == '': return "No file selected"
+        if file.filename == '': 
+            return jsonify({'error': "No file selected"}), 400
 
         conversion_type = request.form.get('type')
         main_ledger = request.form.get('main_ledger', 'Bank Account')
+        pdf_password = request.form.get('password', None) # Password Frontend se aayega
 
         if file:
-            # Secure Filename
             filename = secure_filename(file.filename)
-            
-            # --- NAME CHANGE LOGIC ---
-            # Extension hata kar base name nikalo (e.g., 'Statement.pdf' -> 'Statement')
             base_name = os.path.splitext(filename)[0]
-            # Naya naam banao .xml ke saath
             xml_filename = f"{base_name}.xml"
             
             input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            # Output path ab dynamic hoga
             output_path = os.path.join(app.config['UPLOAD_FOLDER'], xml_filename)
             
             file.save(input_path)
@@ -191,25 +197,32 @@ def convert():
             df = pd.DataFrame()
             fname_lower = filename.lower()
 
-            if fname_lower.endswith('.pdf'):
-                df = parse_pdf_to_dataframe(input_path)
-                if df.empty: return "<h1>Error:</h1><p>PDF Error. Try converting to Excel.</p>"
-            elif fname_lower.endswith(('.xls', '.xlsx')):
-                engine = 'xlrd' if fname_lower.endswith('.xls') else 'openpyxl'
-                df = pd.read_excel(input_path, engine=engine)
-            else:
-                return "Format Error: Use PDF or Excel."
+            try:
+                if fname_lower.endswith('.pdf'):
+                    # Yahan Password Logic Call Hoga
+                    df = parse_pdf_to_dataframe(input_path, pdf_password)
+                    if df.empty: 
+                         return jsonify({'error': "PDF seems empty or unrecognizable."}), 400
+                
+                elif fname_lower.endswith(('.xls', '.xlsx')):
+                    engine = 'xlrd' if fname_lower.endswith('.xls') else 'openpyxl'
+                    df = pd.read_excel(input_path, engine=engine)
+                else:
+                    return jsonify({'error': "Invalid format. Use PDF or Excel."}), 400
+
+            except ValueError as e:
+                # Agar Password Chahiye to Frontend ko batao
+                if str(e) == "PASSWORD_REQUIRED":
+                    return jsonify({'status': 'password_required'}), 401
+                raise e
 
             df = df.fillna('')
             generate_tally_xml(df, output_path, conversion_type, main_ledger)
             
-            # Download karte waqt naya naam use hoga
-            response = make_response(send_file(output_path, as_attachment=True))
-            response.set_cookie('file_download_token', 'done', max_age=60, path='/')
-            return response
+            return send_file(output_path, as_attachment=True, download_name=xml_filename)
             
     except Exception as e:
-        return f"<h1>Error:</h1><p>{str(e)}</p>"
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
