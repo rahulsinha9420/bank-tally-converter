@@ -204,10 +204,11 @@
 
                         <div class="mb-3">
                             <label class="form-label"><i class="fa-solid fa-list-check"></i> Conversion Type</label>
+                            
                             <select name="type" id="typeSelector" class="form-select custom-select">
                                 <option value="bank" selected>Bank Statement</option>
-                                <option value="sales">Sales Register</option>
-                                <option value="purchase">Purchase Register</option>
+                                <option value="sales" disabled>Sales Register (Coming Soon 🚀)</option>
+                                <option value="purchase" disabled>Purchase Register (Coming Soon 🚀)</option>
                             </select>
                         </div>
 
@@ -426,6 +427,8 @@
         function checkInputs() { btn.disabled = (mainLedger.value.trim() === "" || fileInput.files.length === 0); }
         mainLedger.addEventListener('input', checkInputs);
         fileInput.addEventListener('change', checkInputs);
+        
+        // Removed logic for Sales/Purchase placeholder since they are disabled now
         typeSelector.addEventListener('change', checkInputs);
     </script>
 </body>
