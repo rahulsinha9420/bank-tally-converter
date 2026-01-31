@@ -13,31 +13,52 @@ UPLOAD_FOLDER = '/tmp/uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# --- 1. PDF PARSER (With Password Support) ---
+# --- 1. PDF PARSER ---
 def parse_pdf_to_dataframe(pdf_path, pdf_password=None):
     all_data = []
     try:
-        # Password handling logic
-        with pdfplumber.open(pdf_path, password=pdf_password or "") as pdf:
-            for page in pdf.pages:
-                tables = page.extract_tables()
-                if tables:
-                    for table in tables:
-                        for row in table:
-                            cleaned_row = [str(cell).strip() if cell is not None else '' for cell in row]
-                            if any(cleaned_row): 
-                                all_data.append(cleaned_row)
+        print(f"Opening PDF: {pdf_path} with password: {'Yes' if pdf_password else 'No'}")
+        
+        # Password logic: Agar password empty hai to None bhejo, nahi to string
+        pwd = pdf_password if pdf_password else ""
+        
+        with pdfplumber.open(pdf_path, password=pwd) as pdf:
+            total_pages = len(pdf.pages)
+            print(f"Total Pages detected: {total_pages}")
+            
+            for i, page in enumerate(pdf.pages):
+                print(f"Processing Page {i + 1}/{total_pages}...") 
+                try:
+                    tables = page.extract_tables()
+                    if tables:
+                        for table in tables:
+                            for row in table:
+                                cleaned_row = [str(cell).strip() if cell is not None else '' for cell in row]
+                                if any(cleaned_row): 
+                                    all_data.append(cleaned_row)
+                except Exception as e:
+                    print(f"Skipping Page {i+1} due to error: {e}")
+                    continue 
+
     except PDFPasswordIncorrect:
-        # Agar password galat hai ya chahiye, to ye error raise karo
+        # Specific Password Error
         raise ValueError("PASSWORD_REQUIRED")
     except Exception as e:
-        # Koi aur error ho (jaise wrong password format)
-        if "password" in str(e).lower():
-            raise ValueError("PASSWORD_REQUIRED")
-        print(f"PDF Error: {e}")
+        # Generic Error Handling for Encryption
+        err_msg = str(e).lower()
+        if "password" in err_msg or "encryption" in err_msg or "decryption" in err_msg:
+             raise ValueError("PASSWORD_REQUIRED")
+        
+        # Agar bina password ke fail hua, to assume karo password chahiye
+        if not pdf_password:
+             raise ValueError("PASSWORD_REQUIRED")
+             
+        print(f"Critical PDF Error: {e}")
         return pd.DataFrame()
 
-    if not all_data: return pd.DataFrame()
+    if not all_data: 
+        print("No data found in PDF!")
+        return pd.DataFrame()
 
     headers = all_data[0]
     data = all_data[1:]
@@ -58,7 +79,6 @@ def generate_tally_xml(df, output_path, conversion_type, main_ledger_name):
     ET.SubElement(req_desc, "REPORTNAME").text = "All Masters"
     req_data = ET.SubElement(import_data, "REQUESTDATA")
     
-    # Auto-Create Suspense Logic
     if conversion_type == 'bank':
         tally_msg_master = ET.SubElement(req_data, "TALLYMESSAGE", {"xmlns:UDF": "TallyUDF"})
         ledger = ET.SubElement(tally_msg_master, "LEDGER", {"NAME": suspense_ledger_name, "ACTION": "Create"})
@@ -68,7 +88,6 @@ def generate_tally_xml(df, output_path, conversion_type, main_ledger_name):
         ET.SubElement(ledger, "ISBILLWISEON").text = "No"
         ET.SubElement(ledger, "AFFECTSSTOCK").text = "No"
 
-    # Vouchers Logic
     df.columns = [str(c).strip() for c in df.columns]
     
     for index, row in df.iterrows():
@@ -166,23 +185,47 @@ def generate_tally_xml(df, output_path, conversion_type, main_ledger_name):
     tree.write(output_path, encoding="utf-8", xml_declaration=True)
 
 # --- 3. ROUTES ---
+
+# === YEH RASTA (ROUTE) MISSING THA, ISE ADD KAR DIYA HAI ===
 @app.route('/')
 def index():
     return render_template('index.html')
 
+@app.route('/check_lock', methods=['POST'])
+def check_lock():
+    if 'file' not in request.files: return jsonify({'status': 'error', 'msg': 'No file part'})
+    file = request.files['file']
+    if file.filename == '': return jsonify({'status': 'error', 'msg': 'No file selected'})
+    
+    filename = secure_filename(file.filename)
+    path = os.path.join(app.config['UPLOAD_FOLDER'], f"temp_check_{filename}")
+    file.save(path)
+    
+    status = "unlocked"
+    try:
+        if filename.lower().endswith('.pdf'):
+            # Try to read. Agar error aaya to locked maana jayega
+            with pdfplumber.open(path) as pdf:
+                _ = len(pdf.pages)
+    except Exception as e:
+        # Koi bhi error aayi to locked maano (Safety Logic)
+        print(f"File seems locked: {e}")
+        status = "locked"
+    finally:
+        if os.path.exists(path): os.remove(path)
+        
+    return jsonify({'status': status})
+
 @app.route('/convert', methods=['POST'])
 def convert():
     try:
-        if 'file' not in request.files: 
-            return jsonify({'error': "No file uploaded"}), 400
-        
+        if 'file' not in request.files: return jsonify({'error': "No file uploaded"}), 400
         file = request.files['file']
-        if file.filename == '': 
-            return jsonify({'error': "No file selected"}), 400
+        if file.filename == '': return jsonify({'error': "No file selected"}), 400
 
         conversion_type = request.form.get('type')
         main_ledger = request.form.get('main_ledger', 'Bank Account')
-        pdf_password = request.form.get('password', None) # Password Frontend se aayega
+        pdf_password = request.form.get('password', None)
 
         if file:
             filename = secure_filename(file.filename)
@@ -191,7 +234,6 @@ def convert():
             
             input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             output_path = os.path.join(app.config['UPLOAD_FOLDER'], xml_filename)
-            
             file.save(input_path)
             
             df = pd.DataFrame()
@@ -199,26 +241,22 @@ def convert():
 
             try:
                 if fname_lower.endswith('.pdf'):
-                    # Yahan Password Logic Call Hoga
                     df = parse_pdf_to_dataframe(input_path, pdf_password)
-                    if df.empty: 
-                         return jsonify({'error': "PDF seems empty or unrecognizable."}), 400
-                
+                    if df.empty: return jsonify({'error': "PDF empty or unrecognizable."}), 400
                 elif fname_lower.endswith(('.xls', '.xlsx')):
                     engine = 'xlrd' if fname_lower.endswith('.xls') else 'openpyxl'
                     df = pd.read_excel(input_path, engine=engine)
                 else:
-                    return jsonify({'error': "Invalid format. Use PDF or Excel."}), 400
+                    return jsonify({'error': "Invalid format."}), 400
 
             except ValueError as e:
-                # Agar Password Chahiye to Frontend ko batao
+                # Agar Code ne 'PASSWORD_REQUIRED' error fenka, to frontend pakad lega
                 if str(e) == "PASSWORD_REQUIRED":
                     return jsonify({'status': 'password_required'}), 401
                 raise e
 
             df = df.fillna('')
             generate_tally_xml(df, output_path, conversion_type, main_ledger)
-            
             return send_file(output_path, as_attachment=True, download_name=xml_filename)
             
     except Exception as e:

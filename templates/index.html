@@ -56,35 +56,28 @@
             border-radius: 10px;
             font-weight: bold;
             box-shadow: 0 0 20px #eee;
+            opacity: 1; cursor: pointer;
         }
         .btn-grad:hover {
-            background-position: right center;
-            color: #fff;
-            transform: translateY(-3px);
+            background-position: right center; color: #fff; transform: translateY(-3px);
         }
-        .btn-grad:disabled { background: #666; cursor: not-allowed; }
+        .btn-grad:disabled {
+            background-image: none; background-color: #999;
+            cursor: not-allowed; transform: none; box-shadow: none; opacity: 0.6;
+        }
         .form-label { color: #fff; font-weight: 500; margin-bottom: 5px; }
-        
-        /* Privacy Badge Style */
         .privacy-badge {
-            margin-top: 15px;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 8px 15px;
-            border-radius: 50px;
-            font-size: 0.8rem;
-            color: #fff;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
+            margin-top: 15px; background: rgba(0, 0, 0, 0.2); padding: 8px 15px;
+            border-radius: 50px; font-size: 0.8rem; color: #fff; display: inline-flex;
+            align-items: center; gap: 8px;
         }
-
         .circle { position: absolute; background: rgba(255, 255, 255, 0.1); border-radius: 50%; z-index: 1; }
         .c1 { width: 200px; height: 200px; top: 10%; left: 10%; animation: float 6s ease-in-out infinite; }
         .c2 { width: 150px; height: 150px; bottom: 20%; right: 10%; animation: float 8s ease-in-out infinite; }
         @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-20px); } 100% { transform: translateY(0px); } }
-        
         .footer-credit { position: fixed; bottom: 20px; left: 0; width: 100%; text-align: center; color: rgba(255, 255, 255, 0.7); font-size: 0.9rem; z-index: 100; pointer-events: none; }
         .footer-credit span { color: #fff; font-weight: 700; text-shadow: 0 0 10px rgba(255, 255, 255, 0.4); }
+        #checkStatus { font-size: 0.85rem; font-weight: 600; margin-top: 5px; min-height: 20px; }
     </style>
 </head>
 <body>
@@ -103,6 +96,8 @@
                     </div>
                     
                     <form id="convertForm">
+                        <input type="hidden" name="password" id="hiddenPassword">
+
                         <div class="mb-3">
                             <label class="form-label"><i class="fa-solid fa-list-check"></i> Conversion Type</label>
                             <select name="type" id="typeSelector" class="form-select custom-select">
@@ -114,20 +109,20 @@
                         <div class="mb-3">
                             <label class="form-label"><i class="fa-solid fa-cloud-arrow-up"></i> Upload File</label>
                             <input class="form-control custom-input" type="file" id="file" name="file" required accept=".xlsx, .xls, .pdf">
-                            <div class="form-text" style="color: #eee;">Supports Excel & PDF (including Password Protected)</div>
+                            <div id="checkStatus" style="color: #fff;"></div>
                         </div>
                         
                         <div class="mb-4">
                             <label class="form-label"><i class="fa-solid fa-building-columns"></i> Bank Name (As per tally)</label>
                             <div class="row">
                                 <div class="col-12">
-                                    <input type="text" name="main_ledger" id="mainLedger" class="form-control custom-input" placeholder="e.g. HDFC Bank" value="Bank Account">
+                                    <input type="text" name="main_ledger" id="mainLedger" class="form-control custom-input" placeholder="e.g. HDFC Bank" value="" required>
                                 </div>
                             </div>
                         </div>
 
                         <div class="d-grid gap-2 mt-4 text-center">
-                            <button type="submit" id="submitBtn" class="btn btn-grad btn-lg py-3 w-100">
+                            <button type="submit" id="submitBtn" class="btn btn-grad btn-lg py-3 w-100" disabled>
                                 <i class="fa-solid fa-wand-magic-sparkles"></i> Convert Now
                             </button>
                             
@@ -146,15 +141,15 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content" style="border-radius: 15px; border: none;">
                 <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title"><i class="fa-solid fa-lock"></i> Password Required</h5>
+                    <h5 class="modal-title"><i class="fa-solid fa-lock"></i> Password Detected</h5>
                 </div>
                 <div class="modal-body">
-                    <p>This PDF is password protected. Please enter the password to continue.</p>
+                    <p>This file is password protected. Please enter the password now.</p>
                     <input type="password" id="pdfPasswordInput" class="form-control custom-input" style="border: 1px solid #ddd;" placeholder="Enter PDF Password">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-                    <button type="button" class="btn btn-danger" onclick="retryWithPassword()">Unlock & Convert</button>
+                    <button type="button" class="btn btn-danger" onclick="savePassword()">Unlock PDF</button>
                 </div>
             </div>
         </div>
@@ -168,45 +163,110 @@
     <script>
         const form = document.getElementById('convertForm');
         const btn = document.getElementById('submitBtn');
+        const fileInput = document.getElementById('file');
+        const checkStatus = document.getElementById('checkStatus');
+        const mainLedger = document.getElementById('mainLedger');
+        const typeSelector = document.getElementById('typeSelector');
         const passwordModal = new bootstrap.Modal(document.getElementById('passwordModal'));
+        const hiddenPassword = document.getElementById('hiddenPassword');
         
-        // --- SMART SUBMIT LOGIC ---
+        let isConversionTriggered = false;
+
+        // --- DEEP CLEAN FUNCTION ---
+        function deepCleanSystem() {
+            form.reset();
+            fileInput.value = ""; 
+            hiddenPassword.value = ""; 
+            checkStatus.innerHTML = "";
+            btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Convert Now';
+            btn.style.opacity = "1";
+            checkInputs();
+        }
+
+        // --- CHECK ON SELECT ---
+        fileInput.addEventListener('change', function() {
+            if (this.files.length === 0) {
+                checkStatus.innerHTML = "";
+                return;
+            }
+
+            checkStatus.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking file protection...';
+            checkStatus.style.color = "#FFD700";
+
+            const formData = new FormData();
+            formData.append('file', this.files[0]);
+
+            fetch('/check_lock', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => {
+                if (!res.ok) throw new Error("Server Error");
+                return res.json();
+            })
+            .then(data => {
+                if (data.status === 'locked') {
+                    checkStatus.innerHTML = '<i class="fa-solid fa-lock"></i> Password Protected';
+                    checkStatus.style.color = "#ff6b6b"; 
+                    passwordModal.show();
+                    isConversionTriggered = false;
+                } else {
+                    checkStatus.innerHTML = '<i class="fa-solid fa-check-circle"></i> File Ready';
+                    checkStatus.style.color = "#a8ff78"; 
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                checkStatus.innerHTML = "";
+            });
+        });
+
+        // --- SAVE PASSWORD (UNLOCK ACTION) ---
+        function savePassword() {
+            const pwd = document.getElementById('pdfPasswordInput').value;
+            if (!pwd) { alert("Please enter a password"); return; }
+            
+            hiddenPassword.value = pwd;
+            passwordModal.hide();
+            
+            checkStatus.innerHTML = '<i class="fa-solid fa-unlock"></i> PDF Unlocked';
+            checkStatus.style.color = "#a8ff78";
+
+            if (isConversionTriggered) {
+                handleConversion();
+            }
+        }
+
+        // --- CONVERT ---
         form.addEventListener('submit', function(e) {
-            e.preventDefault(); // Default submit roko
+            e.preventDefault(); 
+            isConversionTriggered = true;
             handleConversion();
         });
 
-        function handleConversion(password = null) {
-            const fileInput = document.getElementById('file');
+        function handleConversion() {
             if (fileInput.files.length === 0) return;
 
-            // Loading State
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Processing...';
             btn.style.opacity = "0.8";
             btn.disabled = true;
 
             const formData = new FormData(form);
-            if (password) {
-                formData.append('password', password);
-            }
 
-            // AJAX Request
             fetch('/convert', {
                 method: 'POST',
                 body: formData
             })
             .then(response => {
-                // Case 1: Password Required (401)
                 if (response.status === 401) {
                     passwordModal.show();
-                    resetButton();
-                    return null; // Stop chain
+                    btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Convert Now';
+                    btn.style.opacity = "1";
+                    return null;
                 }
-                // Case 2: Error (400/500)
                 if (!response.ok) {
                     return response.json().then(err => { throw new Error(err.error || 'Unknown Error'); });
                 }
-                // Case 3: Success - Get Filename
                 const disposition = response.headers.get('Content-Disposition');
                 let filename = "Converted.xml";
                 if (disposition && disposition.indexOf('attachment') !== -1) {
@@ -216,61 +276,52 @@
                 return response.blob().then(blob => ({ blob, filename }));
             })
             .then(data => {
-                if (!data) return; // Password case handled above
-
-                // Trigger Download
+                if (!data) return;
                 const url = window.URL.createObjectURL(data.blob);
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = data.filename;
-                document.body.appendChild(a); // Firefox ke liye zaroori
+                document.body.appendChild(a);
                 a.click();
                 a.remove();
                 
-                // Success Reset
-                resetButton();
-                form.reset();
+                deepCleanSystem(); // Reset everything
             })
             .catch(error => {
                 alert("Error: " + error.message);
-                resetButton();
+                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Convert Now';
+                btn.style.opacity = "1";
+                checkInputs();
             });
-        }
-
-        // Retry Button Logic
-        function retryWithPassword() {
-            const pwd = document.getElementById('pdfPasswordInput').value;
-            if (!pwd) { alert("Please enter a password"); return; }
-            passwordModal.hide();
-            handleConversion(pwd); // Dobara try karo password ke saath
         }
 
         function closeModal() {
             passwordModal.hide();
-            resetButton();
-        }
-
-        function resetButton() {
             btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Convert Now';
             btn.style.opacity = "1";
-            btn.disabled = false;
+            checkInputs();
         }
 
-        // Dropdown Logic
-        const typeSelector = document.getElementById('typeSelector');
-        const mainLedger = document.getElementById('mainLedger');
+        function checkInputs() {
+            if (mainLedger.value.trim() === "") {
+                btn.disabled = true;
+            } else {
+                btn.disabled = false;
+            }
+        }
+        mainLedger.addEventListener('input', checkInputs);
         typeSelector.addEventListener('change', function() {
             if (this.value === 'sales') {
                 mainLedger.value = "Sales Account";
-                mainLedger.placeholder = "Sales Ledger Name";
             } else if (this.value === 'purchase') {
                 mainLedger.value = "Purchase Account";
-                mainLedger.placeholder = "Purchase Ledger Name";
             } else {
-                mainLedger.value = "Bank Account";
+                mainLedger.value = "";
                 mainLedger.placeholder = "e.g. HDFC Bank";
             }
+            checkInputs();
         });
+        checkInputs();
     </script>
 </body>
 </html>
