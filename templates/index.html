@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 
     <style>
+        /* --- GLOBAL STYLES --- */
         body {
             background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
             background-size: 400% 400%;
@@ -26,6 +27,7 @@
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
         }
+        
         .glass-card {
             background: rgba(255, 255, 255, 0.25);
             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
@@ -46,6 +48,8 @@
             width: 100%;
             color: #333;
         }
+        
+        /* --- BUTTON STYLE (Theme Gradient) --- */
         .btn-grad {
             background-image: linear-gradient(to right, #FF512F 0%, #DD2476 51%, #FF512F 100%);
             text-transform: uppercase;
@@ -65,6 +69,7 @@
             background-image: none; background-color: #999;
             cursor: not-allowed; transform: none; box-shadow: none; opacity: 0.6;
         }
+        
         .form-label { color: #fff; font-weight: 500; margin-bottom: 5px; }
         .privacy-badge {
             margin-top: 15px; background: rgba(0, 0, 0, 0.2); padding: 8px 15px;
@@ -77,13 +82,112 @@
         @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-20px); } 100% { transform: translateY(0px); } }
         .footer-credit { position: fixed; bottom: 20px; left: 0; width: 100%; text-align: center; color: rgba(255, 255, 255, 0.7); font-size: 0.9rem; z-index: 100; pointer-events: none; }
         .footer-credit span { color: #fff; font-weight: 700; text-shadow: 0 0 10px rgba(255, 255, 255, 0.4); }
-        #checkStatus { font-size: 0.85rem; font-weight: 600; margin-top: 5px; min-height: 20px; }
+        #checkStatus { font-size: 0.85rem; font-weight: 600; margin-top: 8px; min-height: 20px; }
+
+        /* --- UPLOAD MODAL STYLES --- */
+        .upload-modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5); z-index: 1050;
+            display: none;
+            justify-content: center; align-items: center;
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+        .upload-modal-overlay.show { display: flex; opacity: 1; }
+
+        .upload-modal {
+            background: #fff; border-radius: 16px; padding: 24px; width: 90%; max-width: 500px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transform: translateY(20px); transition: transform 0.3s ease;
+            color: #333;
+        }
+        .upload-modal-overlay.show .upload-modal { transform: translateY(0); }
+
+        .modal-header-custom {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+        }
+        .modal-title-custom { font-size: 1.25rem; font-weight: 600; }
+        .btn-close-custom { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666; }
+        
+        .modal-subtitle { font-size: 0.9rem; color: #666; margin-bottom: 20px; }
+
+        .drop-zone-modal {
+            border: 2px dashed #ff9a9e; /* Default Pink Border */
+            border-radius: 12px; padding: 40px 20px;
+            text-align: center; background: #fffcfd;
+            transition: all 0.3s ease; cursor: pointer;
+            min-height: 200px; display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .drop-zone-modal.dragover { 
+            background: rgba(221, 36, 118, 0.05); 
+            border-color: #DD2476; 
+        }
+        
+        .upload-icon-group { position: relative; display: inline-block; margin-bottom: 16px; }
+        .file-icon { font-size: 2.5rem; color: #e2e8f0; }
+        
+        .cloud-icon {
+            position: absolute; bottom: -5px; right: -5px;
+            background: linear-gradient(to right, #FF512F, #DD2476);
+            color: white; border-radius: 50%;
+            padding: 6px; font-size: 1rem;
+        }
+        
+        .drop-text { font-size: 1rem; font-weight: 500; color: #333; }
+        
+        .browse-link { 
+            color: #DD2476; 
+            text-decoration: none; font-weight: 600; 
+        }
+        .browse-link:hover { text-decoration: underline; color: #FF512F; }
+
+        .file-info-modal {
+            display: flex; justify-content: space-between; font-size: 0.8rem; color: #666; margin-top: 12px;
+        }
+
+        .btn-continue {
+            background-image: linear-gradient(to right, #FF512F 0%, #DD2476 51%, #FF512F 100%);
+            background-size: 200% auto;
+            color: white; border: none; border-radius: 8px;
+            padding: 12px; width: 100%; font-weight: 600; margin-top: 24px;
+            transition: 0.5s;
+        }
+        .btn-continue:hover { background-position: right center; }
+        .btn-continue:disabled { 
+            background: #e2e8f0; cursor: not-allowed; background-image: none; 
+        }
+
+        #file { display: none; }
+        #fileNameDisplay {
+            background: rgba(255, 255, 255, 0.9); padding: 12px; border-radius: 10px;
+            color: #333; margin-top: 5px; display: none; align-items: center;
+        }
     </style>
 </head>
 <body>
 
     <div class="circle c1"></div>
     <div class="circle c2"></div>
+
+    <div class="upload-modal-overlay" id="uploadModalOverlay">
+        <div class="upload-modal">
+            <div class="modal-header-custom">
+                <h5 class="modal-title-custom">Upload file</h5>
+                <button type="button" class="btn-close-custom" onclick="closeUploadModal()">&times;</button>
+            </div>
+            <p class="modal-subtitle">Add your files or documents here</p>
+            
+            <div class="drop-zone-modal" id="modalDropZone">
+                </div>
+
+            <div class="file-info-modal">
+                <span>Supported files: .xlsx, .xls, .pdf</span>
+                <span>Maximum size: 10MB</span>
+            </div>
+            
+            <button class="btn-continue" onclick="closeUploadModal()" disabled id="btnContinue">Continue</button>
+        </div>
+    </div>
+
 
     <div class="container">
         <div class="row justify-content-center">
@@ -106,10 +210,18 @@
                                 <option value="purchase">Purchase Register</option>
                             </select>
                         </div>
+
                         <div class="mb-3">
                             <label class="form-label"><i class="fa-solid fa-cloud-arrow-up"></i> Upload File</label>
-                            <input class="form-control custom-input" type="file" id="file" name="file" required accept=".xlsx, .xls, .pdf">
-                            <div id="checkStatus" style="color: #fff;"></div>
+                            
+                            <input type="file" id="file" name="file" required accept=".xlsx, .xls, .pdf">
+                            
+                            <button type="button" class="btn btn-outline-light w-100 py-2" onclick="openUploadModal()" style="border-radius: 10px; border: 1px solid rgba(255,255,255,0.5);">
+                                <i class="fa-solid fa-plus me-2"></i> Choose File / Drag & Drop
+                            </button>
+
+                            <div id="fileNameDisplay"></div>
+                            <div id="checkStatus" class="text-center"></div>
                         </div>
                         
                         <div class="mb-4">
@@ -164,164 +276,157 @@
         const form = document.getElementById('convertForm');
         const btn = document.getElementById('submitBtn');
         const fileInput = document.getElementById('file');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
         const checkStatus = document.getElementById('checkStatus');
         const mainLedger = document.getElementById('mainLedger');
         const typeSelector = document.getElementById('typeSelector');
         const passwordModal = new bootstrap.Modal(document.getElementById('passwordModal'));
         const hiddenPassword = document.getElementById('hiddenPassword');
         
-        let isConversionTriggered = false;
+        // Modal Elements
+        const uploadModalOverlay = document.getElementById('uploadModalOverlay');
+        const modalDropZone = document.getElementById('modalDropZone');
+        const btnContinue = document.getElementById('btnContinue');
 
-        // --- DEEP CLEAN FUNCTION ---
+        const defaultDropZoneHTML = `
+            <div class="upload-icon-group">
+                <i class="fa-regular fa-file file-icon"></i>
+                <i class="fa-solid fa-cloud-arrow-up cloud-icon"></i>
+            </div>
+            <p class="drop-text">Drop your files here, <a href="#" class="browse-link" id="modalBrowseLink">or click to browse</a></p>
+        `;
+
+        let isConversionTriggered = false;
+        let dragCounter = 0; 
+
+        resetModalUI();
+
+        window.addEventListener('dragenter', function(e) { e.preventDefault(); dragCounter++; if (dragCounter === 1) openUploadModal(); });
+        window.addEventListener('dragleave', function(e) { e.preventDefault(); dragCounter--; if (dragCounter === 0) closeUploadModal(); });
+        window.addEventListener('dragover', function(e) { e.preventDefault(); });
+        window.addEventListener('drop', function(e) { e.preventDefault(); dragCounter = 0; if (!modalDropZone.contains(e.target)) closeUploadModal(); });
+
+        function openUploadModal() {
+            uploadModalOverlay.classList.add('show');
+            dragCounter = 1;
+        }
+
+        function closeUploadModal() {
+            uploadModalOverlay.classList.remove('show');
+            modalDropZone.classList.remove('dragover');
+            dragCounter = 0;
+        }
+
+        function resetModalUI() {
+            modalDropZone.innerHTML = defaultDropZoneHTML;
+            modalDropZone.style.background = "#fffcfd";
+            modalDropZone.style.border = "2px dashed #ff9a9e"; 
+            btnContinue.disabled = true;
+            document.getElementById('modalBrowseLink').addEventListener('click', (e) => { e.preventDefault(); fileInput.click(); });
+        }
+
+        modalDropZone.addEventListener('dragenter', (e) => { e.preventDefault(); modalDropZone.classList.add('dragover'); });
+        modalDropZone.addEventListener('dragover', (e) => { e.preventDefault(); modalDropZone.classList.add('dragover'); });
+        modalDropZone.addEventListener('dragleave', (e) => { e.preventDefault(); modalDropZone.classList.remove('dragover'); });
+        modalDropZone.addEventListener('click', () => fileInput.click()); 
+
+        modalDropZone.addEventListener('drop', function(e) {
+            e.preventDefault(); e.stopPropagation();
+            modalDropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) handleFileSelection(e.dataTransfer.files[0]);
+        });
+
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0) handleFileSelection(this.files[0]);
+        });
+
+        function handleFileSelection(file) {
+            if (fileInput.files[0] !== file) {
+                 const dt = new DataTransfer(); dt.items.add(file); fileInput.files = dt.files;
+            }
+
+            // === GREEN THEME SUCCESS STATE ===
+            modalDropZone.innerHTML = `
+                <div class="animate__animated animate__bounceIn">
+                    <i class="fa-solid fa-file-circle-check" style="font-size: 3.5rem; color: #2ecc71; margin-bottom: 15px;"></i>
+                    <h5 style="color: #333; margin-bottom: 5px; font-weight: 600;">${file.name}</h5>
+                    <span class="badge" style="font-size: 0.9rem; padding: 8px 12px; background: #2ecc71;">File Selected</span>
+                </div>
+            `;
+            modalDropZone.style.border = "2px solid #2ecc71";
+            modalDropZone.style.background = "rgba(46, 204, 113, 0.1)";
+
+            fileNameDisplay.innerHTML = `<i class="fa-regular fa-file-lines me-2"></i> ${file.name}`;
+            fileNameDisplay.style.display = 'flex';
+            
+            btnContinue.disabled = false;
+            checkFileProtection();
+        }
+
+        btnContinue.addEventListener('click', closeUploadModal);
+
+        function checkFileProtection() {
+            if (fileInput.files.length === 0) return;
+            checkStatus.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking protection...';
+            checkStatus.style.color = "#FFD700";
+            const formData = new FormData(); formData.append('file', fileInput.files[0]);
+            fetch('/check_lock', { method: 'POST', body: formData })
+            .then(res => { if (!res.ok) throw new Error("Err"); return res.json(); })
+            .then(data => {
+                if (data.status === 'locked') {
+                    checkStatus.innerHTML = '<i class="fa-solid fa-lock"></i> Password Protected'; checkStatus.style.color = "#ff6b6b"; 
+                    passwordModal.show(); isConversionTriggered = false;
+                } else {
+                    checkStatus.innerHTML = '<i class="fa-solid fa-check-circle"></i> File Ready'; checkStatus.style.color = "#a8ff78"; 
+                }
+            })
+            .catch(err => { console.error(err); checkStatus.innerHTML = ""; });
+        }
+
         function deepCleanSystem() {
-            form.reset();
-            fileInput.value = ""; 
-            hiddenPassword.value = ""; 
+            form.reset(); fileInput.value = ""; hiddenPassword.value = ""; 
+            fileNameDisplay.innerHTML = ""; fileNameDisplay.style.display = "none";
             checkStatus.innerHTML = "";
-            btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Convert Now';
-            btn.style.opacity = "1";
+            btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Convert Now'; btn.style.opacity = "1";
+            resetModalUI(); 
             checkInputs();
         }
 
-        // --- CHECK ON SELECT ---
-        fileInput.addEventListener('change', function() {
-            if (this.files.length === 0) {
-                checkStatus.innerHTML = "";
-                return;
-            }
-
-            checkStatus.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking file protection...';
-            checkStatus.style.color = "#FFD700";
-
-            const formData = new FormData();
-            formData.append('file', this.files[0]);
-
-            fetch('/check_lock', {
-                method: 'POST',
-                body: formData
-            })
-            .then(res => {
-                if (!res.ok) throw new Error("Server Error");
-                return res.json();
-            })
-            .then(data => {
-                if (data.status === 'locked') {
-                    checkStatus.innerHTML = '<i class="fa-solid fa-lock"></i> Password Protected';
-                    checkStatus.style.color = "#ff6b6b"; 
-                    passwordModal.show();
-                    isConversionTriggered = false;
-                } else {
-                    checkStatus.innerHTML = '<i class="fa-solid fa-check-circle"></i> File Ready';
-                    checkStatus.style.color = "#a8ff78"; 
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                checkStatus.innerHTML = "";
-            });
-        });
-
-        // --- SAVE PASSWORD (UNLOCK ACTION) ---
         function savePassword() {
             const pwd = document.getElementById('pdfPasswordInput').value;
-            if (!pwd) { alert("Please enter a password"); return; }
-            
-            hiddenPassword.value = pwd;
-            passwordModal.hide();
-            
-            checkStatus.innerHTML = '<i class="fa-solid fa-unlock"></i> PDF Unlocked';
-            checkStatus.style.color = "#a8ff78";
-
-            if (isConversionTriggered) {
-                handleConversion();
-            }
+            if (!pwd) { alert("Enter password"); return; }
+            hiddenPassword.value = pwd; passwordModal.hide();
+            checkStatus.innerHTML = '<i class="fa-solid fa-unlock"></i> PDF Unlocked'; checkStatus.style.color = "#a8ff78";
+            if (isConversionTriggered) handleConversion();
         }
 
-        // --- CONVERT ---
-        form.addEventListener('submit', function(e) {
-            e.preventDefault(); 
-            isConversionTriggered = true;
-            handleConversion();
-        });
+        form.addEventListener('submit', function(e) { e.preventDefault(); isConversionTriggered = true; handleConversion(); });
 
         function handleConversion() {
             if (fileInput.files.length === 0) return;
-
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Processing...';
-            btn.style.opacity = "0.8";
-            btn.disabled = true;
-
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Processing...'; btn.style.opacity = "0.8"; btn.disabled = true;
             const formData = new FormData(form);
-
-            fetch('/convert', {
-                method: 'POST',
-                body: formData
-            })
+            fetch('/convert', { method: 'POST', body: formData })
             .then(response => {
-                if (response.status === 401) {
-                    passwordModal.show();
-                    btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Convert Now';
-                    btn.style.opacity = "1";
-                    return null;
-                }
-                if (!response.ok) {
-                    return response.json().then(err => { throw new Error(err.error || 'Unknown Error'); });
-                }
-                const disposition = response.headers.get('Content-Disposition');
-                let filename = "Converted.xml";
-                if (disposition && disposition.indexOf('attachment') !== -1) {
-                    const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
-                    if (matches != null && matches[1]) filename = matches[1].replace(/['"]/g, '');
-                }
+                if (response.status === 401) { passwordModal.show(); btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Convert Now'; btn.style.opacity = "1"; return null; }
+                if (!response.ok) return response.json().then(err => { throw new Error(err.error || 'Err'); });
+                const disposition = response.headers.get('Content-Disposition'); let filename = "Converted.xml";
+                if (disposition && disposition.indexOf('attachment') !== -1) { const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition); if (matches != null && matches[1]) filename = matches[1].replace(/['"]/g, ''); }
                 return response.blob().then(blob => ({ blob, filename }));
             })
             .then(data => {
                 if (!data) return;
-                const url = window.URL.createObjectURL(data.blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = data.filename;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                
-                deepCleanSystem(); // Reset everything
+                const url = window.URL.createObjectURL(data.blob); const a = document.createElement('a'); a.href = url; a.download = data.filename; document.body.appendChild(a); a.click(); a.remove();
+                deepCleanSystem();
             })
-            .catch(error => {
-                alert("Error: " + error.message);
-                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Convert Now';
-                btn.style.opacity = "1";
-                checkInputs();
-            });
+            .catch(error => { alert(error.message); btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Convert Now'; btn.style.opacity = "1"; checkInputs(); });
         }
 
-        function closeModal() {
-            passwordModal.hide();
-            btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Convert Now';
-            btn.style.opacity = "1";
-            checkInputs();
-        }
-
-        function checkInputs() {
-            if (mainLedger.value.trim() === "") {
-                btn.disabled = true;
-            } else {
-                btn.disabled = false;
-            }
-        }
+        function closeModal() { passwordModal.hide(); btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Convert Now'; btn.style.opacity = "1"; checkInputs(); }
+        function checkInputs() { btn.disabled = (mainLedger.value.trim() === "" || fileInput.files.length === 0); }
         mainLedger.addEventListener('input', checkInputs);
-        typeSelector.addEventListener('change', function() {
-            if (this.value === 'sales') {
-                mainLedger.value = "Sales Account";
-            } else if (this.value === 'purchase') {
-                mainLedger.value = "Purchase Account";
-            } else {
-                mainLedger.value = "";
-                mainLedger.placeholder = "e.g. HDFC Bank";
-            }
-            checkInputs();
-        });
-        checkInputs();
+        fileInput.addEventListener('change', checkInputs);
+        typeSelector.addEventListener('change', checkInputs);
     </script>
 </body>
 </html>
