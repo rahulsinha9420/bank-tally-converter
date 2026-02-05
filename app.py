@@ -1,34 +1,33 @@
 import os
-from flask import Flask, render_template, request, send_file, jsonify
 import pandas as pd
+from flask import Flask, render_template, request, send_file, make_response, jsonify
 import xml.etree.ElementTree as ET
 import pdfplumber
 from pdfminer.pdfdocument import PDFPasswordIncorrect
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.secret_key = "BANKFLOW_SECRET_KEY_SIMPLE"
 
-# --- UPLOAD CONFIG ---
+# --- CONFIGURATION ---
 UPLOAD_FOLDER = '/tmp/uploads' 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# --- MAIN ROUTE ---
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-# --- CORE LOGIC: PDF PARSER (With Smart Header Fix) ---
+# --- 1. PDF PARSER (WITH SMART HEADER FIX) ---
 def parse_pdf_to_dataframe(pdf_path, pdf_password=None):
     all_data = []
     try:
-        print(f"Opening PDF: {pdf_path}")
+        print(f"Opening PDF: {pdf_path} with password: {'Yes' if pdf_password else 'No'}")
+        
         pwd = pdf_password if pdf_password else ""
         
         with pdfplumber.open(pdf_path, password=pwd) as pdf:
-            for page in pdf.pages:
+            total_pages = len(pdf.pages)
+            print(f"Total Pages detected: {total_pages}")
+            
+            for i, page in enumerate(pdf.pages):
                 try:
+                    # 'vertical_strategy': 'lines' helps with strict columns like IDFC
                     tables = page.extract_tables() 
                     if tables:
                         for table in tables:
@@ -37,45 +36,61 @@ def parse_pdf_to_dataframe(pdf_path, pdf_password=None):
                                 if any(cleaned_row): 
                                     all_data.append(cleaned_row)
                 except Exception as e:
-                    print(f"Skipping Page: {e}")
+                    print(f"Skipping Page {i+1} due to error: {e}")
                     continue 
 
     except PDFPasswordIncorrect:
         raise ValueError("PASSWORD_REQUIRED")
     except Exception as e:
-        if "password" in str(e).lower() or "encryption" in str(e).lower():
+        err_msg = str(e).lower()
+        if "password" in err_msg or "encryption" in err_msg:
              raise ValueError("PASSWORD_REQUIRED")
         if not pdf_password:
              raise ValueError("PASSWORD_REQUIRED")
+        print(f"Critical PDF Error: {e}")
         return pd.DataFrame()
 
     if not all_data: 
+        print("No data found in PDF!")
         return pd.DataFrame()
 
-    # --- SMART HEADER DETECTION LOGIC ---
+    # --- SMART HEADER DETECTION LOGIC (IDFC FIX) ---
+    # Hum pehli 20 lines mein dhundenge ki asli header kahan hai
     header_index = 0
     max_score = 0
+    
+    # Keywords jo header mein hone chahiye
     keywords = ['date', 'particulars', 'description', 'narration', 'debit', 'credit', 'withdrawal', 'deposit', 'balance', 'val date', 'txn date']
     
+    # Scan first 20 rows to find the best header match
     for i, row in enumerate(all_data[:20]):
         row_str = " ".join([str(x).lower() for x in row])
         score = 0
         for kw in keywords:
-            if kw in row_str: score += 1
+            if kw in row_str:
+                score += 1
         
+        # Agar is row mein zyada keywords mile, to yehi header hai
         if score > max_score:
             max_score = score
             header_index = i
             
-    if max_score < 2: header_index = 0
-    
+    # Agar koi strong header match nahi hua, to 0 hi rakho
+    if max_score < 2: 
+        header_index = 0
+        
+    print(f"Smart Header detected at row index: {header_index}")
+
+    # Ab data ko sahi header se split karo
     headers = all_data[header_index]
     data = all_data[header_index+1:]
+    
+    # Handle duplicate columns (e.g. Date, Value Date)
     headers = [f"{col}_{i}" if headers.count(col) > 1 else col for i, col in enumerate(headers)]
     
     return pd.DataFrame(data, columns=headers)
 
-# --- CORE LOGIC: XML GENERATOR ---
+# --- 2. XML GENERATOR ---
 def generate_tally_xml(df, output_path, conversion_type, main_ledger_name):
     suspense_ledger_name = "Suspense Account"
     
@@ -194,11 +209,18 @@ def generate_tally_xml(df, output_path, conversion_type, main_ledger_name):
     tree = ET.ElementTree(envelope)
     tree.write(output_path, encoding="utf-8", xml_declaration=True)
 
-# --- ROUTES: UTILITY ---
+# --- 3. ROUTES ---
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
 @app.route('/check_lock', methods=['POST'])
 def check_lock():
-    if 'file' not in request.files: return jsonify({'status': 'error'})
+    if 'file' not in request.files: return jsonify({'status': 'error', 'msg': 'No file part'})
     file = request.files['file']
+    if file.filename == '': return jsonify({'status': 'error', 'msg': 'No file selected'})
+    
     filename = secure_filename(file.filename)
     path = os.path.join(app.config['UPLOAD_FOLDER'], f"temp_check_{filename}")
     file.save(path)
@@ -206,8 +228,10 @@ def check_lock():
     status = "unlocked"
     try:
         if filename.lower().endswith('.pdf'):
-            with pdfplumber.open(path) as pdf: _ = len(pdf.pages)
-    except Exception: status = "locked"
+            with pdfplumber.open(path) as pdf:
+                _ = len(pdf.pages)
+    except Exception as e:
+        status = "locked"
     finally:
         if os.path.exists(path): os.remove(path)
         
@@ -218,7 +242,8 @@ def convert():
     try:
         if 'file' not in request.files: return jsonify({'error': "No file uploaded"}), 400
         file = request.files['file']
-        
+        if file.filename == '': return jsonify({'error': "No file selected"}), 400
+
         conversion_type = request.form.get('type')
         main_ledger = request.form.get('main_ledger', 'Bank Account')
         pdf_password = request.form.get('password', None)
@@ -246,12 +271,12 @@ def convert():
                     return jsonify({'error': "Invalid format."}), 400
 
             except ValueError as e:
-                if str(e) == "PASSWORD_REQUIRED": return jsonify({'status': 'password_required'}), 401
+                if str(e) == "PASSWORD_REQUIRED":
+                    return jsonify({'status': 'password_required'}), 401
                 raise e
 
             df = df.fillna('')
             generate_tally_xml(df, output_path, conversion_type, main_ledger)
-            
             return send_file(output_path, as_attachment=True, download_name=xml_filename)
             
     except Exception as e:
