@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 
     <style>
-        /* --- GLOBAL PREMIUM STYLE (Wahi Purana Design) --- */
+        /* --- GLOBAL PREMIUM STYLE (Maintain Original Design) --- */
         body {
             background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
             background-size: 400% 400%; animation: gradientBG 15s ease infinite;
@@ -19,7 +19,6 @@
             font-family: 'Poppins', sans-serif; overflow: hidden;
         }
         @keyframes gradientBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-        
         .glass-card {
             background: rgba(255, 255, 255, 0.25); box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
             backdrop-filter: blur(8px); border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.18);
@@ -49,10 +48,8 @@
         .upload-modal-overlay.show { display: flex; }
         .upload-modal { background: #fff; border-radius: 16px; padding: 24px; width: 90%; max-width: 400px; color: #333; }
         .drop-zone-modal { border: 2px dashed #ff9a9e; border-radius: 12px; padding: 30px; text-align: center; cursor: pointer; }
-        
         .whatsapp-float { position: fixed; bottom: 30px; right: 30px; background: #25d366; color: white; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 1000; text-decoration: none; }
         .footer-credit { position: fixed; bottom: 20px; left: 0; width: 100%; text-align: center; color: white; font-size: 0.9rem; }
-        .footer-credit span { font-weight: 700; }
     </style>
 </head>
 <body>
@@ -60,15 +57,13 @@
     <div class="glass-card animate__animated animate__fadeInUp">
         <div class="text-center mb-4">
             <i class="fa-solid fa-shield-halved fa-3x mb-3 text-white"></i>
-            <h3 style="font-weight: 800;">Bank to Tally Pro</h3>
-            <p>Bulk Convert with Real-time Tracking</p>
+            <h3 style="font-weight: 800;">BankFlow Pro</h3>
+            <p>Bulk Convert with Smart Progress Tracking</p>
         </div>
 
         <form id="convertForm">
-            <input type="hidden" name="password" id="hiddenPassword">
-            
             <div class="mb-3">
-                <label class="small text-white mb-1"><i class="fa-solid fa-list"></i> Conversion Type</label>
+                <label class="small text-white mb-1">Conversion Type</label>
                 <select id="typeSelector" class="form-select custom-select">
                     <option value="bank" selected>Bank Statement</option>
                     <option value="sales" disabled>Sales Register (Coming Soon 🚀)</option>
@@ -76,15 +71,15 @@
                 </select>
             </div>
             <div class="mb-3">
-                <label class="small text-white mb-1"><i class="fa-solid fa-cloud-arrow-up"></i> Upload File(s)</label>
-                <input type="file" id="file" class="form-control" multiple required accept=".pdf, .xlsx, .xls" style="display:none;">
+                <label class="small text-white mb-1">Upload File(s)</label>
+                <input type="file" id="file" multiple required accept=".pdf, .xlsx, .xls" style="display:none;">
                 <button type="button" class="btn btn-outline-light w-100 py-2" onclick="openUploadModal()" style="border-radius:10px; border:1px solid rgba(255,255,255,0.5);">
                     <i class="fa-solid fa-plus me-2"></i> Choose Files / Drag & Drop
                 </button>
                 <div id="fileNameDisplay" class="mt-2 p-2 bg-white rounded text-dark small" style="display:none;"></div>
             </div>
             <div class="mb-4">
-                <label class="small text-white mb-1"><i class="fa-solid fa-building-columns"></i> Bank Name (Tally)</label>
+                <label class="small text-white mb-1">Bank Ledger Name (Tally)</label>
                 <input type="text" id="mainLedger" class="form-control custom-input" placeholder="e.g. IDFC Bank" required>
             </div>
 
@@ -103,12 +98,12 @@
     <div class="modal fade" id="passwordModal" tabindex="-1" data-bs-backdrop="static">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                <div class="modal-header bg-danger text-white"><h5><i class="fa-solid fa-lock me-2"></i> Protected File</h5></div>
+                <div class="modal-header bg-danger text-white"><h5><i class="fa-solid fa-lock me-2"></i> Password Needed</h5></div>
                 <div class="modal-body">
-                    <p class="small text-dark">Password required for: <b><span id="lockedFileName"></span></b></p>
-                    <input type="password" id="pdfPasswordInput" class="form-control" placeholder="Enter PDF Password">
+                    <p class="small text-dark">Enter password for: <b><span id="lockedFileName"></span></b></p>
+                    <input type="password" id="pdfPasswordInput" class="form-control" placeholder="Enter Password">
                 </div>
-                <div class="modal-footer"><button type="button" class="btn btn-danger w-100" id="unlockBtn">Unlock & Continue</button></div>
+                <div class="modal-footer"><button type="button" class="btn btn-danger w-100" id="unlockBtn">Unlock & Next</button></div>
             </div>
         </div>
     </div>
@@ -134,23 +129,22 @@
         const uploadModalOverlay = document.getElementById('uploadModalOverlay');
         const modalDropZone = document.getElementById('modalDropZone');
         const pModal = new bootstrap.Modal(document.getElementById('passwordModal'));
-        let passwordValue = "";
+        
+        let filePasswords = {}; 
+        let lockedFilesQueue = [];
+        let currentLockedFile = null;
 
         window.openUploadModal = () => uploadModalOverlay.classList.add('show');
         window.closeUploadModal = () => { uploadModalOverlay.classList.remove('show'); dragCounter = 0; };
 
-        // Drag & Drop Auto Open
+        // Drag & Drop
         let dragCounter = 0;
         window.addEventListener('dragenter', e => { e.preventDefault(); dragCounter++; if(dragCounter === 1) openUploadModal(); });
         window.addEventListener('dragleave', e => { e.preventDefault(); dragCounter--; if(dragCounter === 0) closeUploadModal(); });
         window.addEventListener('dragover', e => e.preventDefault());
         window.addEventListener('drop', e => { e.preventDefault(); dragCounter = 0; if(!modalDropZone.contains(e.target)) closeUploadModal(); });
 
-        modalDropZone.addEventListener('drop', e => {
-            e.preventDefault();
-            if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
-        });
-
+        modalDropZone.addEventListener('drop', e => { e.preventDefault(); if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files); });
         fileInput.addEventListener('change', () => handleFiles(fileInput.files));
 
         async function handleFiles(files) {
@@ -158,24 +152,46 @@
             for(let f of files) dt.items.add(f);
             fileInput.files = dt.files;
             
-            fileNameDisplay.innerHTML = `<i class="fa-solid fa-file-circle-check me-2"></i> ${files.length} file(s) ready`;
+            fileNameDisplay.innerHTML = `<i class="fa-solid fa-file-circle-check me-2"></i> ${files.length} file(s) selected`;
             fileNameDisplay.style.display = 'block';
-            document.getElementById('btnContinue').disabled = false;
             
-            // Lock Detection for first file
-            const fd = new FormData(); fd.append('file', files[0]);
-            const res = await fetch('/check_lock', { method: 'POST', body: fd });
-            const data = await res.json();
-            if(data.status === 'locked') {
-                document.getElementById('lockedFileName').innerText = files[0].name;
-                pModal.show();
+            filePasswords = {};
+            lockedFilesQueue = [];
+            
+            // Sequential Check for Locks
+            for (let file of files) {
+                if (file.name.toLowerCase().endsWith('.pdf')) {
+                    const fd = new FormData(); fd.append('file', file);
+                    const res = await fetch('/check_lock', { method: 'POST', body: fd });
+                    const data = await res.json();
+                    if(data.status === 'locked') lockedFilesQueue.push(file);
+                }
             }
+            
+            if (lockedFilesQueue.length > 0) processPasswordQueue();
+            else document.getElementById('btnContinue').disabled = false;
+            
             checkInputs();
         }
 
+        function processPasswordQueue() {
+            if (lockedFilesQueue.length > 0) {
+                currentLockedFile = lockedFilesQueue.shift();
+                document.getElementById('lockedFileName').innerText = currentLockedFile.name;
+                document.getElementById('pdfPasswordInput').value = "";
+                pModal.show();
+            } else {
+                document.getElementById('btnContinue').disabled = false;
+            }
+        }
+
         document.getElementById('unlockBtn').onclick = () => {
-            passwordValue = document.getElementById('pdfPasswordInput').value;
-            if(passwordValue) pModal.hide();
+            const pwd = document.getElementById('pdfPasswordInput').value;
+            if(pwd) {
+                filePasswords[currentLockedFile.name] = pwd;
+                pModal.hide();
+                setTimeout(processPasswordQueue, 400); // Ask for next locked file
+            } else alert("Password required!");
         };
 
         function checkInputs() { document.getElementById('submitBtn').disabled = !(document.getElementById('mainLedger').value.trim() && fileInput.files.length); }
@@ -200,12 +216,12 @@
             
             for (let i = 0; i < total; i++) {
                 const file = files[i];
-                statusText.innerText = `Processing: ${file.name}`;
+                statusText.innerText = `Converting: ${file.name}`;
                 
                 const fd = new FormData();
                 fd.append('file', file);
                 fd.append('main_ledger', ledger);
-                if(i === 0) fd.append('password', passwordValue);
+                if(filePasswords[file.name]) fd.append('password', filePasswords[file.name]);
 
                 try {
                     const res = await fetch('/convert', { method: 'POST', body: fd });
@@ -213,27 +229,25 @@
                         const blob = await res.blob();
                         zip.file(file.name.replace(/\.[^/.]+$/, "") + ".xml", blob);
                     } else if(res.status === 401) {
-                        alert("Wrong Password for " + file.name);
-                        location.reload(); return;
+                        alert("Wrong password for " + file.name + ". Skipping.");
                     }
                 } catch (err) { console.error(err); }
 
-                // Circular Progress Update
                 const completed = i + 1;
                 const percentage = (completed / total) * 100;
                 bar.style.strokeDashoffset = circumference - (percentage / 100) * circumference;
                 counterText.innerText = `${completed}/${total}`;
             }
 
-            statusText.innerText = "Finalising Download...";
+            statusText.innerText = "Generating Package...";
             const content = await zip.generateAsync({type:"blob"});
             const a = document.createElement('a');
             a.href = URL.createObjectURL(content);
             a.download = total > 1 ? "BankFlow_Bulk.zip" : files[0].name.replace(/\.[^/.]+$/, "") + ".xml";
             a.click();
             
-            statusText.innerText = "Conversion Successful!";
-            setTimeout(() => location.reload(), 2000);
+            statusText.innerText = "Success!";
+            setTimeout(() => location.reload(), 1500);
         };
     </script>
 </body>

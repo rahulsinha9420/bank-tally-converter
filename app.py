@@ -10,12 +10,10 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.secret_key = "BANKFLOW_PREMIUM_KEY_RAHUL"
 
-# --- CONFIGURATION ---
 UPLOAD_FOLDER = '/tmp/uploads' 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# --- 1. SMART PDF PARSER (With Password & IDFC Support) ---
 def parse_pdf_to_dataframe(pdf_path, pdf_password=None):
     all_data = []
     try:
@@ -23,7 +21,6 @@ def parse_pdf_to_dataframe(pdf_path, pdf_password=None):
         with pdfplumber.open(pdf_path, password=pwd) as pdf:
             for page in pdf.pages:
                 try:
-                    # 'vertical_strategy' helps with strict columns like IDFC
                     tables = page.extract_tables() 
                     if tables:
                         for table in tables:
@@ -38,7 +35,6 @@ def parse_pdf_to_dataframe(pdf_path, pdf_password=None):
 
     if not all_data: return pd.DataFrame()
 
-    # Smart Header Detection Logic (IDFC & Multiple Bank Fix)
     header_index = 0
     max_score = 0
     keywords = ['date', 'particulars', 'description', 'narration', 'debit', 'credit', 'withdrawal', 'deposit', 'balance', 'val date', 'txn date']
@@ -55,7 +51,6 @@ def parse_pdf_to_dataframe(pdf_path, pdf_password=None):
     headers = [f"{col}_{i}" if headers.count(col) > 1 else col for i, col in enumerate(headers)]
     return pd.DataFrame(data, columns=headers)
 
-# --- 2. XML GENERATOR ---
 def generate_tally_xml(df, main_ledger_name):
     suspense = "Suspense Account"
     envelope = ET.Element("ENVELOPE")
@@ -65,7 +60,6 @@ def generate_tally_xml(df, main_ledger_name):
     import_data = ET.SubElement(body, "IMPORTDATA")
     req_data = ET.SubElement(import_data, "REQUESTDATA")
     
-    # Create Suspense Ledger in XML
     tally_msg_m = ET.SubElement(req_data, "TALLYMESSAGE", {"xmlns:UDF": "TallyUDF"})
     ledger = ET.SubElement(tally_msg_m, "LEDGER", {"NAME": suspense, "ACTION": "Create"})
     ET.SubElement(ET.SubElement(ledger, "NAME.LIST"), "NAME").text = suspense
@@ -74,8 +68,6 @@ def generate_tally_xml(df, main_ledger_name):
     df.columns = [str(c).strip().lower() for c in df.columns]
     for _, row in df.iterrows():
         tally_msg = ET.SubElement(req_data, "TALLYMESSAGE", {"xmlns:UDF": "TallyUDF"})
-        
-        # Amount detection logic for Debit/Credit
         amount, debit, credit = 0, 0, 0
         for col in df.columns:
             val = str(row[col]).replace(',', '').strip()
@@ -92,19 +84,16 @@ def generate_tally_xml(df, main_ledger_name):
         voucher = ET.SubElement(tally_msg, "VOUCHER", {"VCHTYPE": vch_type, "ACTION": "Create"})
         ET.SubElement(voucher, "VOUCHERTYPENAME").text = vch_type
         
-        # Entry 1 (Suspense)
         l1 = ET.SubElement(voucher, "ALLLEDGERENTRIES.LIST")
         ET.SubElement(l1, "LEDGERNAME").text = suspense
         ET.SubElement(l1, "AMOUNT").text = str(-amount if debit > 0 else amount)
 
-        # Entry 2 (Bank)
         l2 = ET.SubElement(voucher, "ALLLEDGERENTRIES.LIST")
         ET.SubElement(l2, "LEDGERNAME").text = main_ledger_name
         ET.SubElement(l2, "AMOUNT").text = str(amount if debit > 0 else -amount)
 
     return ET.tostring(envelope, encoding="utf-8", xml_declaration=True)
 
-# --- 3. ROUTES ---
 @app.route('/')
 def index(): return render_template('index.html')
 
@@ -129,20 +118,15 @@ def convert():
         file = request.files['file']
         main_ledger = request.form.get('main_ledger', 'Bank Account')
         pdf_password = request.form.get('password', None)
-        
-        filename = secure_filename(file.filename)
-        path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file.filename))
         file.save(path)
-        
         try:
-            df = parse_pdf_to_dataframe(path, pdf_password) if filename.endswith('.pdf') else pd.read_excel(path)
-            if df.empty: return jsonify({'error': "No data found"}), 400
+            df = parse_pdf_to_dataframe(path, pdf_password)
         except ValueError as e:
             if str(e) == "PASSWORD_REQUIRED": return jsonify({'status': 'password_required'}), 401
             raise e
-
         xml_data = generate_tally_xml(df, main_ledger)
-        return send_file(io.BytesIO(xml_data), as_attachment=True, download_name=f"{os.path.splitext(filename)[0]}.xml")
+        return send_file(io.BytesIO(xml_data), as_attachment=True, download_name=f"{os.path.splitext(file.filename)[0]}.xml")
     except Exception as e: return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__': app.run(debug=True)
