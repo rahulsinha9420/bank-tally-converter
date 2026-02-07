@@ -4,3 +4,4 @@ openpyxl
 gunicorn
 xlrd
 pdfplumber
+zipstream-ng

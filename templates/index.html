@@ -11,65 +11,94 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 
     <style>
+        /* --- GLOBAL STYLES (Wahi Purana Design) --- */
         body {
             background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
             background-size: 400% 400%;
             animation: gradientBG 15s ease infinite;
             height: 100vh;
-            display: flex; align-items: center; justify-content: center;
-            font-family: 'Poppins', sans-serif; overflow: hidden;
+            display: flex;
+            align-items: center;
+            font-family: 'Poppins', sans-serif;
+            overflow: hidden;
         }
         @keyframes gradientBG {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
         }
+        
         .glass-card {
             background: rgba(255, 255, 255, 0.25);
             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
             backdrop-filter: blur(8px);
-            border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.18);
-            padding: 2.5rem; color: white; position: relative; z-index: 10;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            padding: 2.5rem;
+            color: white;
+            position: relative;
+            z-index: 10;
         }
         .custom-input, .custom-select {
-            background: rgba(255, 255, 255, 0.9); border: none; border-radius: 10px; padding: 12px; width: 100%; color: #333;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            width: 100%;
+            color: #333;
         }
+        
         .btn-grad {
             background-image: linear-gradient(to right, #FF512F 0%, #DD2476 51%, #FF512F 100%);
-            text-transform: uppercase; transition: 0.5s; background-size: 200% auto;
-            color: white; border: none; border-radius: 10px; font-weight: bold; box-shadow: 0 0 20px #eee;
+            text-transform: uppercase;
+            transition: 0.5s;
+            background-size: 200% auto;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            box-shadow: 0 0 20px #eee;
         }
-        .btn-grad:hover { background-position: right center; color: #fff; transform: translateY(-3px); }
-        .btn-grad:disabled { background-image: none; background-color: #999; cursor: not-allowed; }
+        .btn-grad:hover {
+            background-position: right center; color: #fff; transform: translateY(-3px);
+        }
         
         .upload-modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.5); z-index: 1050; display: none;
-            justify-content: center; align-items: center;
+            background: rgba(0, 0, 0, 0.5); z-index: 1050;
+            display: none; justify-content: center; align-items: center;
         }
         .upload-modal-overlay.show { display: flex; }
         .upload-modal {
             background: #fff; border-radius: 16px; padding: 24px; width: 90%; max-width: 500px; color: #333;
         }
         .drop-zone-modal {
-            border: 2px dashed #ff9a9e; border-radius: 12px; padding: 40px 20px; text-align: center; background: #fffcfd; cursor: pointer;
+            border: 2px dashed #ff9a9e; border-radius: 12px; padding: 40px 20px;
+            text-align: center; background: #fffcfd; cursor: pointer; transition: 0.3s;
         }
-        .drop-zone-modal.dragover { border-color: #DD2476; background: rgba(221, 36, 118, 0.05); }
+        .drop-zone-modal.dragover { border-color: #DD2476; background: rgba(221, 36, 118, 0.1); }
         
-        /* FOOTER CREDIT */
+        .whatsapp-float {
+            position: fixed; bottom: 30px; right: 30px; background: #25d366; color: white;
+            width: 60px; height: 60px; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center; font-size: 30px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 1000; text-decoration: none;
+            transition: 0.3s;
+        }
+        .whatsapp-float:hover { transform: scale(1.1); color: white; }
+
         .footer-credit { 
             position: fixed; bottom: 20px; left: 0; width: 100%; text-align: center; 
-            color: rgba(255, 255, 255, 0.7); font-size: 0.9rem; z-index: 100; pointer-events: none; 
+            color: rgba(255, 255, 255, 0.7); font-size: 0.9rem; z-index: 100;
         }
-        .footer-credit span { 
-            color: #fff; font-weight: 700; text-shadow: 0 0 10px rgba(255, 255, 255, 0.4); 
-        }
-        #fileNameDisplay { background: white; color: #333; padding: 10px; border-radius: 10px; display: none; margin-top: 10px; }
+        .footer-credit span { color: #fff; font-weight: 700; }
+        #file { display: none; }
+        #fileNameDisplay { background: rgba(255, 255, 255, 0.9); padding: 12px; border-radius: 10px; color: #333; margin-top: 5px; display: none; }
     </style>
 </head>
 <body>
 
-    <div class="container mt-5">
+    <div class="container">
         <div class="row justify-content-center">
             <div class="col-md-8 col-lg-6">
                 <div class="glass-card animate__animated animate__fadeInUp">
@@ -80,28 +109,33 @@
                     </div>
                     
                     <form id="convertForm">
-                        <input type="hidden" name="password" id="hiddenPassword">
                         <div class="mb-3">
-                            <label class="form-label text-white"><i class="fa-solid fa-list-check"></i> Type</label>
+                            <label class="form-label text-white"><i class="fa-solid fa-list-check"></i> Conversion Type</label>
                             <select name="type" id="typeSelector" class="form-select custom-select">
                                 <option value="bank" selected>Bank Statement</option>
-                                <option value="sales" disabled>Sales Register (Soon)</option>
+                                <option value="sales" disabled>Sales Register (Coming Soon 🚀)</option>
+                                <option value="purchase" disabled>Purchase Register (Coming Soon 🚀)</option>
                             </select>
                         </div>
+
                         <div class="mb-3">
-                            <label class="form-label text-white"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</label>
-                            <input type="file" id="file" name="file" style="display:none;" required accept=".xlsx, .xls, .pdf">
-                            <button type="button" class="btn btn-outline-light w-100" onclick="openUploadModal()">
-                                <i class="fa-solid fa-plus me-2"></i> Choose File
+                            <label class="form-label text-white"><i class="fa-solid fa-cloud-arrow-up"></i> Upload File(s)</label>
+                            <input type="file" id="file" name="file" multiple required accept=".xlsx, .xls, .pdf">
+                            <button type="button" class="btn btn-outline-light w-100 py-2" onclick="openUploadModal()" style="border-radius: 10px; border: 1px solid rgba(255,255,255,0.5);">
+                                <i class="fa-solid fa-plus me-2"></i> Choose Files / Drag & Drop
                             </button>
                             <div id="fileNameDisplay"></div>
-                            <div id="checkStatus" class="text-center text-white small mt-2"></div>
+                            <div id="checkStatus" class="text-center text-white mt-2 small"></div>
                         </div>
+                        
                         <div class="mb-4">
-                            <label class="form-label text-white">Bank Name (Tally)</label>
-                            <input type="text" name="main_ledger" id="mainLedger" class="form-control custom-input" placeholder="e.g. IDFC Bank" required>
+                            <label class="form-label text-white"><i class="fa-solid fa-building-columns"></i> Bank Name (Tally)</label>
+                            <input type="text" name="main_ledger" id="mainLedger" class="form-control custom-input" placeholder="e.g. HDFC Bank" required>
                         </div>
-                        <button type="submit" id="submitBtn" class="btn btn-grad w-100 py-3" disabled>Convert Now</button>
+
+                        <button type="submit" id="submitBtn" class="btn btn-grad btn-lg py-3 w-100" disabled>
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Convert Now
+                        </button>
                     </form>
                 </div>
             </div>
@@ -110,29 +144,21 @@
 
     <div class="upload-modal-overlay" id="uploadModalOverlay">
         <div class="upload-modal">
-            <div class="p-3 d-flex justify-content-between">
-                <h5 class="mb-0">Upload File</h5>
+            <div class="d-flex justify-content-between mb-3">
+                <h5>Upload files</h5>
                 <button type="button" class="btn-close" onclick="closeUploadModal()"></button>
             </div>
-            <div class="p-3">
-                <div class="drop-zone-modal" id="modalDropZone" onclick="document.getElementById('file').click()">
-                    <i class="fa-solid fa-cloud-arrow-up fa-2x mb-2"></i>
-                    <p>Click or Drop File</p>
-                </div>
-                <button class="btn btn-grad w-100 mt-3" onclick="closeUploadModal()" id="btnContinue" disabled>Continue</button>
+            <div class="drop-zone-modal" id="modalDropZone" onclick="document.getElementById('file').click()">
+                <i class="fa-solid fa-cloud-arrow-up fa-2x mb-2 text-secondary"></i>
+                <p>Drop files here or click to browse</p>
             </div>
+            <button class="btn btn-grad w-100 mt-3" onclick="closeUploadModal()" disabled id="btnContinue">Continue</button>
         </div>
     </div>
 
-    <div class="modal fade" id="passwordModal" tabindex="-1" data-bs-backdrop="static">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header bg-danger text-white"><h5>Password Detected</h5></div>
-                <div class="modal-body"><input type="password" id="pdfPasswordInput" class="form-control" placeholder="Enter Password"></div>
-                <div class="modal-footer"><button type="button" class="btn btn-danger" onclick="savePassword()">Unlock</button></div>
-            </div>
-        </div>
-    </div>
+    <a href="https://wa.me/919301284903?text=Hi Rahul, I need help with BankFlow" class="whatsapp-float" target="_blank">
+        <i class="fa-brands fa-whatsapp"></i>
+    </a>
 
     <div class="footer-credit animate__animated animate__fadeInUp animate__delay-1s">
         Designed with <i class="fa-solid fa-heart text-danger mx-1"></i> by <span>Rahul</span>
@@ -141,65 +167,65 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const fileInput = document.getElementById('file');
-        const modalDropZone = document.getElementById('modalDropZone');
         const fileNameDisplay = document.getElementById('fileNameDisplay');
         const uploadModalOverlay = document.getElementById('uploadModalOverlay');
-        const passwordModal = new bootstrap.Modal(document.getElementById('passwordModal'));
-        
-        window.openUploadModal = () => uploadModalOverlay.classList.add('show');
-        window.closeUploadModal = () => uploadModalOverlay.classList.remove('show');
+        const modalDropZone = document.getElementById('modalDropZone');
+        const btnContinue = document.getElementById('btnContinue');
+        const submitBtn = document.getElementById('submitBtn');
 
-        modalDropZone.addEventListener('dragover', (e) => { e.preventDefault(); modalDropZone.classList.add('dragover'); });
+        window.openUploadModal = () => uploadModalOverlay.classList.add('show');
+        window.closeUploadModal = () => { uploadModalOverlay.classList.remove('show'); dragCounter = 0; };
+
+        // === DRAG AND DROP LOGIC ===
+        let dragCounter = 0;
+        window.addEventListener('dragenter', e => { e.preventDefault(); dragCounter++; if(dragCounter === 1) openUploadModal(); });
+        window.addEventListener('dragleave', e => { e.preventDefault(); dragCounter--; if(dragCounter === 0) closeUploadModal(); });
+        window.addEventListener('dragover', e => e.preventDefault());
+        window.addEventListener('drop', e => { e.preventDefault(); dragCounter = 0; if(!modalDropZone.contains(e.target)) closeUploadModal(); });
+
+        modalDropZone.addEventListener('dragover', e => { e.preventDefault(); modalDropZone.classList.add('dragover'); });
         modalDropZone.addEventListener('dragleave', () => modalDropZone.classList.remove('dragover'));
-        modalDropZone.addEventListener('drop', (e) => {
+        modalDropZone.addEventListener('drop', e => {
             e.preventDefault(); modalDropZone.classList.remove('dragover');
-            if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+            if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
         });
 
-        fileInput.addEventListener('change', () => { if(fileInput.files.length) handleFile(fileInput.files[0]); });
+        fileInput.addEventListener('change', () => handleFiles(fileInput.files));
 
-        function handleFile(file) {
-            const dt = new DataTransfer(); dt.items.add(file); fileInput.files = dt.files;
-            fileNameDisplay.innerHTML = `<b>Selected:</b> ${file.name}`;
+        function handleFiles(files) {
+            const dt = new DataTransfer();
+            for(let f of files) dt.items.add(f);
+            fileInput.files = dt.files;
+
+            fileNameDisplay.innerHTML = `<i class="fa-solid fa-file-circle-check me-2"></i> ${files.length} file(s) selected`;
             fileNameDisplay.style.display = 'block';
-            document.getElementById('btnContinue').disabled = false;
-            checkLock();
+            btnContinue.disabled = false;
+            
+            modalDropZone.innerHTML = `<i class="fa-solid fa-circle-check text-success fa-3x mb-2"></i><br>${files.length} Files Ready`;
+            modalDropZone.style.borderColor = "#2ecc71";
             checkInputs();
         }
 
-        function checkLock() {
-            const formData = new FormData(); formData.append('file', fileInput.files[0]);
-            fetch('/check_lock', { method: 'POST', body: formData })
-            .then(r => r.json()).then(d => {
-                if(d.status === 'locked') passwordModal.show();
-            });
-        }
+        document.getElementById('mainLedger').addEventListener('input', checkInputs);
+        function checkInputs() { submitBtn.disabled = !(document.getElementById('mainLedger').value.trim() && fileInput.files.length); }
 
-        function savePassword() {
-            document.getElementById('hiddenPassword').value = document.getElementById('pdfPasswordInput').value;
-            passwordModal.hide();
-        }
-
-        document.getElementById('convertForm').addEventListener('submit', function(e) {
+        document.getElementById('convertForm').onsubmit = async (e) => {
             e.preventDefault();
-            const btn = document.getElementById('submitBtn');
-            btn.innerHTML = "Processing..."; btn.disabled = true;
-            fetch('/convert', { method: 'POST', body: new FormData(this) })
-            .then(r => {
-                if(r.status === 401) { passwordModal.show(); throw new Error("Pass"); }
-                return r.blob();
-            })
-            .then(blob => {
+            submitBtn.innerHTML = '<i class="fa-solid fa-gear fa-spin"></i> Converting...';
+            submitBtn.disabled = true;
+            const res = await fetch('/convert', { method: 'POST', body: new FormData(e.target) });
+            if(res.ok) {
+                const blob = await res.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a'); a.href = url;
-                a.download = fileInput.files[0].name.split('.')[0] + ".xml";
+                a.download = fileInput.files.length > 1 ? "BankFlow_Bulk.zip" : fileInput.files[0].name.split('.')[0] + ".xml";
                 a.click();
                 location.reload();
-            }).catch(() => { btn.innerHTML = "Convert Now"; btn.disabled = false; });
-        });
-
-        function checkInputs() { document.getElementById('submitBtn').disabled = !(document.getElementById('mainLedger').value && fileInput.files.length); }
-        document.getElementById('mainLedger').addEventListener('input', checkInputs);
+            } else {
+                alert("Error in conversion");
+                submitBtn.innerHTML = 'Convert Now'; submitBtn.disabled = false;
+            }
+        };
     </script>
 </body>
 </html>
