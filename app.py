@@ -1,6 +1,5 @@
 import os
 import io
-import zipfile
 import pandas as pd
 from flask import Flask, render_template, request, send_file, jsonify
 import xml.etree.ElementTree as ET
@@ -9,32 +8,40 @@ from pdfminer.pdfdocument import PDFPasswordIncorrect
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
+app.secret_key = "BANKFLOW_PREMIUM_KEY_RAHUL"
 
+# --- CONFIGURATION ---
 UPLOAD_FOLDER = '/tmp/uploads' 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# --- SMART PDF PARSER (Multiple Bank Support) ---
+# --- 1. SMART PDF PARSER (With Password & IDFC Support) ---
 def parse_pdf_to_dataframe(pdf_path, pdf_password=None):
     all_data = []
     try:
         pwd = pdf_password if pdf_password else ""
         with pdfplumber.open(pdf_path, password=pwd) as pdf:
             for page in pdf.pages:
-                tables = page.extract_tables()
-                if tables:
-                    for table in tables:
-                        for row in table:
-                            cleaned_row = [str(cell).strip() if cell is not None else '' for cell in row]
-                            if any(cleaned_row): all_data.append(cleaned_row)
-    except Exception: raise ValueError("PASSWORD_REQUIRED")
+                try:
+                    # 'vertical_strategy' helps with strict columns like IDFC
+                    tables = page.extract_tables() 
+                    if tables:
+                        for table in tables:
+                            for row in table:
+                                cleaned_row = [str(cell).strip() if cell is not None else '' for cell in row]
+                                if any(cleaned_row): all_data.append(cleaned_row)
+                except Exception: continue 
+    except PDFPasswordIncorrect: raise ValueError("PASSWORD_REQUIRED")
+    except Exception as e:
+        if "password" in str(e).lower(): raise ValueError("PASSWORD_REQUIRED")
+        return pd.DataFrame()
 
     if not all_data: return pd.DataFrame()
 
-    # Smart Header Detection Logic
+    # Smart Header Detection Logic (IDFC & Multiple Bank Fix)
     header_index = 0
     max_score = 0
-    keywords = ['date', 'particulars', 'description', 'narration', 'debit', 'credit', 'withdrawal', 'deposit', 'balance']
+    keywords = ['date', 'particulars', 'description', 'narration', 'debit', 'credit', 'withdrawal', 'deposit', 'balance', 'val date', 'txn date']
     
     for i, row in enumerate(all_data[:25]):
         row_str = " ".join([str(x).lower() for x in row])
@@ -48,7 +55,7 @@ def parse_pdf_to_dataframe(pdf_path, pdf_password=None):
     headers = [f"{col}_{i}" if headers.count(col) > 1 else col for i, col in enumerate(headers)]
     return pd.DataFrame(data, columns=headers)
 
-# --- XML GENERATOR ---
+# --- 2. XML GENERATOR ---
 def generate_tally_xml(df, main_ledger_name):
     suspense = "Suspense Account"
     envelope = ET.Element("ENVELOPE")
@@ -58,18 +65,26 @@ def generate_tally_xml(df, main_ledger_name):
     import_data = ET.SubElement(body, "IMPORTDATA")
     req_data = ET.SubElement(import_data, "REQUESTDATA")
     
-    # Simple Logic for Bank Entries
+    # Create Suspense Ledger in XML
+    tally_msg_m = ET.SubElement(req_data, "TALLYMESSAGE", {"xmlns:UDF": "TallyUDF"})
+    ledger = ET.SubElement(tally_msg_m, "LEDGER", {"NAME": suspense, "ACTION": "Create"})
+    ET.SubElement(ET.SubElement(ledger, "NAME.LIST"), "NAME").text = suspense
+    ET.SubElement(ledger, "PARENT").text = "Suspense A/c"
+
     df.columns = [str(c).strip().lower() for c in df.columns]
     for _, row in df.iterrows():
         tally_msg = ET.SubElement(req_data, "TALLYMESSAGE", {"xmlns:UDF": "TallyUDF"})
+        
+        # Amount detection logic for Debit/Credit
         amount, debit, credit = 0, 0, 0
         for col in df.columns:
             val = str(row[col]).replace(',', '').strip()
             try:
                 if any(x in col for x in ['debit', 'dr', 'withdrawal']): debit = float(val)
                 elif any(x in col for x in ['credit', 'cr', 'deposit']): credit = float(val)
+                elif 'amount' in col: amount = float(val)
             except: pass
-        
+
         amount = debit if debit > 0 else credit
         if amount == 0: continue
 
@@ -77,46 +92,57 @@ def generate_tally_xml(df, main_ledger_name):
         voucher = ET.SubElement(tally_msg, "VOUCHER", {"VCHTYPE": vch_type, "ACTION": "Create"})
         ET.SubElement(voucher, "VOUCHERTYPENAME").text = vch_type
         
+        # Entry 1 (Suspense)
         l1 = ET.SubElement(voucher, "ALLLEDGERENTRIES.LIST")
         ET.SubElement(l1, "LEDGERNAME").text = suspense
         ET.SubElement(l1, "AMOUNT").text = str(-amount if debit > 0 else amount)
 
+        # Entry 2 (Bank)
         l2 = ET.SubElement(voucher, "ALLLEDGERENTRIES.LIST")
         ET.SubElement(l2, "LEDGERNAME").text = main_ledger_name
         ET.SubElement(l2, "AMOUNT").text = str(amount if debit > 0 else -amount)
 
     return ET.tostring(envelope, encoding="utf-8", xml_declaration=True)
 
+# --- 3. ROUTES ---
 @app.route('/')
 def index(): return render_template('index.html')
 
+@app.route('/check_lock', methods=['POST'])
+def check_lock():
+    file = request.files['file']
+    filename = secure_filename(file.filename)
+    path = os.path.join(app.config['UPLOAD_FOLDER'], f"temp_{filename}")
+    file.save(path)
+    status = "unlocked"
+    try:
+        if filename.lower().endswith('.pdf'):
+            with pdfplumber.open(path) as pdf: _ = len(pdf.pages)
+    except: status = "locked"
+    finally:
+        if os.path.exists(path): os.remove(path)
+    return jsonify({'status': status})
+
 @app.route('/convert', methods=['POST'])
 def convert():
-    files = request.files.getlist('file')
-    main_ledger = request.form.get('main_ledger', 'Bank Account')
-    if not files or files[0].filename == '': return jsonify({'error': "No files"}), 400
-
-    if len(files) == 1:
-        file = files[0]
+    try:
+        file = request.files['file']
+        main_ledger = request.form.get('main_ledger', 'Bank Account')
+        pdf_password = request.form.get('password', None)
+        
         filename = secure_filename(file.filename)
         path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(path)
-        df = parse_pdf_to_dataframe(path) if filename.endswith('.pdf') else pd.read_excel(path)
+        
+        try:
+            df = parse_pdf_to_dataframe(path, pdf_password) if filename.endswith('.pdf') else pd.read_excel(path)
+            if df.empty: return jsonify({'error': "No data found"}), 400
+        except ValueError as e:
+            if str(e) == "PASSWORD_REQUIRED": return jsonify({'status': 'password_required'}), 401
+            raise e
+
         xml_data = generate_tally_xml(df, main_ledger)
         return send_file(io.BytesIO(xml_data), as_attachment=True, download_name=f"{os.path.splitext(filename)[0]}.xml")
-
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, 'w') as zf:
-        for file in files:
-            filename = secure_filename(file.filename)
-            path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(path)
-            try:
-                df = parse_pdf_to_dataframe(path) if filename.endswith('.pdf') else pd.read_excel(path)
-                xml_data = generate_tally_xml(df, main_ledger)
-                zf.writestr(f"{os.path.splitext(filename)[0]}.xml", xml_data)
-            except: continue
-    zip_buffer.seek(0)
-    return send_file(zip_buffer, as_attachment=True, download_name="BankFlow_Bulk.zip")
+    except Exception as e: return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__': app.run(debug=True)

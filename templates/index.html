@@ -11,220 +11,229 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 
     <style>
-        /* --- GLOBAL STYLES (Wahi Purana Design) --- */
+        /* --- GLOBAL PREMIUM STYLE (Wahi Purana Design) --- */
         body {
             background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
-            background-size: 400% 400%;
-            animation: gradientBG 15s ease infinite;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            font-family: 'Poppins', sans-serif;
-            overflow: hidden;
+            background-size: 400% 400%; animation: gradientBG 15s ease infinite;
+            height: 100vh; display: flex; align-items: center; justify-content: center;
+            font-family: 'Poppins', sans-serif; overflow: hidden;
         }
-        @keyframes gradientBG {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
+        @keyframes gradientBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         
         .glass-card {
-            background: rgba(255, 255, 255, 0.25);
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-            backdrop-filter: blur(8px);
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            padding: 2.5rem;
-            color: white;
-            position: relative;
-            z-index: 10;
+            background: rgba(255, 255, 255, 0.25); box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            backdrop-filter: blur(8px); border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.18);
+            padding: 2.5rem; color: white; width: 100%; max-width: 500px; position: relative; z-index: 10;
         }
-        .custom-input, .custom-select {
-            background: rgba(255, 255, 255, 0.9);
-            border: none;
-            border-radius: 10px;
-            padding: 12px;
-            width: 100%;
-            color: #333;
-        }
-        
+        .custom-input, .custom-select { background: rgba(255, 255, 255, 0.9); border: none; border-radius: 10px; padding: 12px; width: 100%; color: #333; }
         .btn-grad {
             background-image: linear-gradient(to right, #FF512F 0%, #DD2476 51%, #FF512F 100%);
-            text-transform: uppercase;
-            transition: 0.5s;
-            background-size: 200% auto;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-weight: bold;
-            box-shadow: 0 0 20px #eee;
+            background-size: 200% auto; transition: 0.5s; color: white; border: none; border-radius: 10px; font-weight: bold;
         }
-        .btn-grad:hover {
-            background-position: right center; color: #fff; transform: translateY(-3px);
-        }
-        
-        .upload-modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.5); z-index: 1050;
-            display: none; justify-content: center; align-items: center;
-        }
-        .upload-modal-overlay.show { display: flex; }
-        .upload-modal {
-            background: #fff; border-radius: 16px; padding: 24px; width: 90%; max-width: 500px; color: #333;
-        }
-        .drop-zone-modal {
-            border: 2px dashed #ff9a9e; border-radius: 12px; padding: 40px 20px;
-            text-align: center; background: #fffcfd; cursor: pointer; transition: 0.3s;
-        }
-        .drop-zone-modal.dragover { border-color: #DD2476; background: rgba(221, 36, 118, 0.1); }
-        
-        .whatsapp-float {
-            position: fixed; bottom: 30px; right: 30px; background: #25d366; color: white;
-            width: 60px; height: 60px; border-radius: 50%; display: flex;
-            align-items: center; justify-content: center; font-size: 30px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 1000; text-decoration: none;
-            transition: 0.3s;
-        }
-        .whatsapp-float:hover { transform: scale(1.1); color: white; }
+        .btn-grad:hover { background-position: right center; transform: translateY(-3px); }
 
-        .footer-credit { 
-            position: fixed; bottom: 20px; left: 0; width: 100%; text-align: center; 
-            color: rgba(255, 255, 255, 0.7); font-size: 0.9rem; z-index: 100;
+        /* --- CIRCULAR PROGRESS STYLE --- */
+        .progress-container { display: none; flex-direction: column; align-items: center; margin-top: 20px; }
+        .circular-progress { position: relative; width: 120px; height: 120px; }
+        svg { width: 120px; height: 120px; transform: rotate(-90deg); }
+        circle { fill: none; stroke-width: 10; stroke-linecap: round; }
+        .bg-track { stroke: rgba(255,255,255,0.1); }
+        .progress-bar {
+            stroke: #00ff88; stroke-dasharray: 345.5; stroke-dashoffset: 345.5;
+            transition: stroke-dashoffset 0.4s ease;
         }
-        .footer-credit span { color: #fff; font-weight: 700; }
-        #file { display: none; }
-        #fileNameDisplay { background: rgba(255, 255, 255, 0.9); padding: 12px; border-radius: 10px; color: #333; margin-top: 5px; display: none; }
+        .text-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+        #counter { font-size: 18px; font-weight: bold; }
+        
+        .upload-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1050; display: none; justify-content: center; align-items: center; }
+        .upload-modal-overlay.show { display: flex; }
+        .upload-modal { background: #fff; border-radius: 16px; padding: 24px; width: 90%; max-width: 400px; color: #333; }
+        .drop-zone-modal { border: 2px dashed #ff9a9e; border-radius: 12px; padding: 30px; text-align: center; cursor: pointer; }
+        
+        .whatsapp-float { position: fixed; bottom: 30px; right: 30px; background: #25d366; color: white; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 1000; text-decoration: none; }
+        .footer-credit { position: fixed; bottom: 20px; left: 0; width: 100%; text-align: center; color: white; font-size: 0.9rem; }
+        .footer-credit span { font-weight: 700; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-md-8 col-lg-6">
-                <div class="glass-card animate__animated animate__fadeInUp">
-                    <div class="text-center mb-4">
-                        <i class="fa-solid fa-shield-halved fa-3x mb-3 text-white"></i>
-                        <h3 style="font-weight: 800;">Bank to Tally</h3>
-                        <p>Securely Convert Statements to XML</p>
-                    </div>
-                    
-                    <form id="convertForm">
-                        <div class="mb-3">
-                            <label class="form-label text-white"><i class="fa-solid fa-list-check"></i> Conversion Type</label>
-                            <select name="type" id="typeSelector" class="form-select custom-select">
-                                <option value="bank" selected>Bank Statement</option>
-                                <option value="sales" disabled>Sales Register (Coming Soon 🚀)</option>
-                                <option value="purchase" disabled>Purchase Register (Coming Soon 🚀)</option>
-                            </select>
-                        </div>
+    <div class="glass-card animate__animated animate__fadeInUp">
+        <div class="text-center mb-4">
+            <i class="fa-solid fa-shield-halved fa-3x mb-3 text-white"></i>
+            <h3 style="font-weight: 800;">Bank to Tally Pro</h3>
+            <p>Bulk Convert with Real-time Tracking</p>
+        </div>
 
-                        <div class="mb-3">
-                            <label class="form-label text-white"><i class="fa-solid fa-cloud-arrow-up"></i> Upload File(s)</label>
-                            <input type="file" id="file" name="file" multiple required accept=".xlsx, .xls, .pdf">
-                            <button type="button" class="btn btn-outline-light w-100 py-2" onclick="openUploadModal()" style="border-radius: 10px; border: 1px solid rgba(255,255,255,0.5);">
-                                <i class="fa-solid fa-plus me-2"></i> Choose Files / Drag & Drop
-                            </button>
-                            <div id="fileNameDisplay"></div>
-                            <div id="checkStatus" class="text-center text-white mt-2 small"></div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <label class="form-label text-white"><i class="fa-solid fa-building-columns"></i> Bank Name (Tally)</label>
-                            <input type="text" name="main_ledger" id="mainLedger" class="form-control custom-input" placeholder="e.g. HDFC Bank" required>
-                        </div>
+        <form id="convertForm">
+            <input type="hidden" name="password" id="hiddenPassword">
+            
+            <div class="mb-3">
+                <label class="small text-white mb-1"><i class="fa-solid fa-list"></i> Conversion Type</label>
+                <select id="typeSelector" class="form-select custom-select">
+                    <option value="bank" selected>Bank Statement</option>
+                    <option value="sales" disabled>Sales Register (Coming Soon 🚀)</option>
+                    <option value="purchase" disabled>Purchase Register (Coming Soon 🚀)</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="small text-white mb-1"><i class="fa-solid fa-cloud-arrow-up"></i> Upload File(s)</label>
+                <input type="file" id="file" class="form-control" multiple required accept=".pdf, .xlsx, .xls" style="display:none;">
+                <button type="button" class="btn btn-outline-light w-100 py-2" onclick="openUploadModal()" style="border-radius:10px; border:1px solid rgba(255,255,255,0.5);">
+                    <i class="fa-solid fa-plus me-2"></i> Choose Files / Drag & Drop
+                </button>
+                <div id="fileNameDisplay" class="mt-2 p-2 bg-white rounded text-dark small" style="display:none;"></div>
+            </div>
+            <div class="mb-4">
+                <label class="small text-white mb-1"><i class="fa-solid fa-building-columns"></i> Bank Name (Tally)</label>
+                <input type="text" id="mainLedger" class="form-control custom-input" placeholder="e.g. IDFC Bank" required>
+            </div>
 
-                        <button type="submit" id="submitBtn" class="btn btn-grad btn-lg py-3 w-100" disabled>
-                            <i class="fa-solid fa-wand-magic-sparkles"></i> Convert Now
-                        </button>
-                    </form>
+            <button type="submit" id="submitBtn" class="btn btn-grad w-100 py-3" disabled>Convert Now</button>
+
+            <div class="progress-container" id="progCont">
+                <div class="circular-progress">
+                    <svg><circle class="bg-track" cx="60" cy="60" r="55"></circle><circle class="progress-bar" id="bar" cx="60" cy="60" r="55"></circle></svg>
+                    <div class="text-overlay"><span id="counter">0/0</span></div>
                 </div>
+                <p class="small mt-2" id="statusText">Initialising...</p>
+            </div>
+        </form>
+    </div>
+
+    <div class="modal fade" id="passwordModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white"><h5><i class="fa-solid fa-lock me-2"></i> Protected File</h5></div>
+                <div class="modal-body">
+                    <p class="small text-dark">Password required for: <b><span id="lockedFileName"></span></b></p>
+                    <input type="password" id="pdfPasswordInput" class="form-control" placeholder="Enter PDF Password">
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-danger w-100" id="unlockBtn">Unlock & Continue</button></div>
             </div>
         </div>
     </div>
 
     <div class="upload-modal-overlay" id="uploadModalOverlay">
         <div class="upload-modal">
-            <div class="d-flex justify-content-between mb-3">
-                <h5>Upload files</h5>
-                <button type="button" class="btn-close" onclick="closeUploadModal()"></button>
-            </div>
+            <div class="d-flex justify-content-between mb-3"><h5>Upload files</h5><button type="button" class="btn-close" onclick="closeUploadModal()"></button></div>
             <div class="drop-zone-modal" id="modalDropZone" onclick="document.getElementById('file').click()">
-                <i class="fa-solid fa-cloud-arrow-up fa-2x mb-2 text-secondary"></i>
-                <p>Drop files here or click to browse</p>
+                <i class="fa-solid fa-cloud-arrow-up fa-2x mb-2 text-secondary"></i><p>Drop files here or click</p>
             </div>
             <button class="btn btn-grad w-100 mt-3" onclick="closeUploadModal()" disabled id="btnContinue">Continue</button>
         </div>
     </div>
 
-    <a href="https://wa.me/919301284903?text=Hi Rahul, I need help with BankFlow" class="whatsapp-float" target="_blank">
-        <i class="fa-brands fa-whatsapp"></i>
-    </a>
+    <a href="https://wa.me/919301284903" class="whatsapp-float" target="_blank"><i class="fa-brands fa-whatsapp"></i></a>
+    <div class="footer-credit">Designed with <i class="fa-solid fa-heart text-danger"></i> by <span>Rahul</span></div>
 
-    <div class="footer-credit animate__animated animate__fadeInUp animate__delay-1s">
-        Designed with <i class="fa-solid fa-heart text-danger mx-1"></i> by <span>Rahul</span>
-    </div>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const fileInput = document.getElementById('file');
         const fileNameDisplay = document.getElementById('fileNameDisplay');
         const uploadModalOverlay = document.getElementById('uploadModalOverlay');
         const modalDropZone = document.getElementById('modalDropZone');
-        const btnContinue = document.getElementById('btnContinue');
-        const submitBtn = document.getElementById('submitBtn');
+        const pModal = new bootstrap.Modal(document.getElementById('passwordModal'));
+        let passwordValue = "";
 
         window.openUploadModal = () => uploadModalOverlay.classList.add('show');
         window.closeUploadModal = () => { uploadModalOverlay.classList.remove('show'); dragCounter = 0; };
 
-        // === DRAG AND DROP LOGIC ===
+        // Drag & Drop Auto Open
         let dragCounter = 0;
         window.addEventListener('dragenter', e => { e.preventDefault(); dragCounter++; if(dragCounter === 1) openUploadModal(); });
         window.addEventListener('dragleave', e => { e.preventDefault(); dragCounter--; if(dragCounter === 0) closeUploadModal(); });
         window.addEventListener('dragover', e => e.preventDefault());
         window.addEventListener('drop', e => { e.preventDefault(); dragCounter = 0; if(!modalDropZone.contains(e.target)) closeUploadModal(); });
 
-        modalDropZone.addEventListener('dragover', e => { e.preventDefault(); modalDropZone.classList.add('dragover'); });
-        modalDropZone.addEventListener('dragleave', () => modalDropZone.classList.remove('dragover'));
         modalDropZone.addEventListener('drop', e => {
-            e.preventDefault(); modalDropZone.classList.remove('dragover');
+            e.preventDefault();
             if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
         });
 
         fileInput.addEventListener('change', () => handleFiles(fileInput.files));
 
-        function handleFiles(files) {
+        async function handleFiles(files) {
             const dt = new DataTransfer();
             for(let f of files) dt.items.add(f);
             fileInput.files = dt.files;
-
-            fileNameDisplay.innerHTML = `<i class="fa-solid fa-file-circle-check me-2"></i> ${files.length} file(s) selected`;
-            fileNameDisplay.style.display = 'block';
-            btnContinue.disabled = false;
             
-            modalDropZone.innerHTML = `<i class="fa-solid fa-circle-check text-success fa-3x mb-2"></i><br>${files.length} Files Ready`;
-            modalDropZone.style.borderColor = "#2ecc71";
+            fileNameDisplay.innerHTML = `<i class="fa-solid fa-file-circle-check me-2"></i> ${files.length} file(s) ready`;
+            fileNameDisplay.style.display = 'block';
+            document.getElementById('btnContinue').disabled = false;
+            
+            // Lock Detection for first file
+            const fd = new FormData(); fd.append('file', files[0]);
+            const res = await fetch('/check_lock', { method: 'POST', body: fd });
+            const data = await res.json();
+            if(data.status === 'locked') {
+                document.getElementById('lockedFileName').innerText = files[0].name;
+                pModal.show();
+            }
             checkInputs();
         }
 
+        document.getElementById('unlockBtn').onclick = () => {
+            passwordValue = document.getElementById('pdfPasswordInput').value;
+            if(passwordValue) pModal.hide();
+        };
+
+        function checkInputs() { document.getElementById('submitBtn').disabled = !(document.getElementById('mainLedger').value.trim() && fileInput.files.length); }
         document.getElementById('mainLedger').addEventListener('input', checkInputs);
-        function checkInputs() { submitBtn.disabled = !(document.getElementById('mainLedger').value.trim() && fileInput.files.length); }
 
         document.getElementById('convertForm').onsubmit = async (e) => {
             e.preventDefault();
-            submitBtn.innerHTML = '<i class="fa-solid fa-gear fa-spin"></i> Converting...';
-            submitBtn.disabled = true;
-            const res = await fetch('/convert', { method: 'POST', body: new FormData(e.target) });
-            if(res.ok) {
-                const blob = await res.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url;
-                a.download = fileInput.files.length > 1 ? "BankFlow_Bulk.zip" : fileInput.files[0].name.split('.')[0] + ".xml";
-                a.click();
-                location.reload();
-            } else {
-                alert("Error in conversion");
-                submitBtn.innerHTML = 'Convert Now'; submitBtn.disabled = false;
+            const files = fileInput.files;
+            const total = files.length;
+            const ledger = document.getElementById('mainLedger').value;
+            const btn = document.getElementById('submitBtn');
+            const progCont = document.getElementById('progCont');
+            const bar = document.getElementById('bar');
+            const counterText = document.getElementById('counter');
+            const statusText = document.getElementById('statusText');
+            
+            const zip = new JSZip();
+            const circumference = 2 * Math.PI * 55;
+
+            btn.style.display = 'none';
+            progCont.style.display = 'flex';
+            
+            for (let i = 0; i < total; i++) {
+                const file = files[i];
+                statusText.innerText = `Processing: ${file.name}`;
+                
+                const fd = new FormData();
+                fd.append('file', file);
+                fd.append('main_ledger', ledger);
+                if(i === 0) fd.append('password', passwordValue);
+
+                try {
+                    const res = await fetch('/convert', { method: 'POST', body: fd });
+                    if (res.ok) {
+                        const blob = await res.blob();
+                        zip.file(file.name.replace(/\.[^/.]+$/, "") + ".xml", blob);
+                    } else if(res.status === 401) {
+                        alert("Wrong Password for " + file.name);
+                        location.reload(); return;
+                    }
+                } catch (err) { console.error(err); }
+
+                // Circular Progress Update
+                const completed = i + 1;
+                const percentage = (completed / total) * 100;
+                bar.style.strokeDashoffset = circumference - (percentage / 100) * circumference;
+                counterText.innerText = `${completed}/${total}`;
             }
+
+            statusText.innerText = "Finalising Download...";
+            const content = await zip.generateAsync({type:"blob"});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(content);
+            a.download = total > 1 ? "BankFlow_Bulk.zip" : files[0].name.replace(/\.[^/.]+$/, "") + ".xml";
+            a.click();
+            
+            statusText.innerText = "Conversion Successful!";
+            setTimeout(() => location.reload(), 2000);
         };
     </script>
 </body>
