@@ -8,12 +8,14 @@ from pdfminer.pdfdocument import PDFPasswordIncorrect
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.secret_key = "BANKFLOW_PREMIUM_KEY_RAHUL"
+app.secret_key = "BANKFLOW_SINGLE_PRO_RAHUL"
 
+# --- CONFIGURATION ---
 UPLOAD_FOLDER = '/tmp/uploads' 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# --- 1. SMART PDF PARSER ---
 def parse_pdf_to_dataframe(pdf_path, pdf_password=None):
     all_data = []
     try:
@@ -35,6 +37,7 @@ def parse_pdf_to_dataframe(pdf_path, pdf_password=None):
 
     if not all_data: return pd.DataFrame()
 
+    # Smart Header Detection (IDFC & Multiple Bank Fix)
     header_index = 0
     max_score = 0
     keywords = ['date', 'particulars', 'description', 'narration', 'debit', 'credit', 'withdrawal', 'deposit', 'balance', 'val date', 'txn date']
@@ -51,6 +54,7 @@ def parse_pdf_to_dataframe(pdf_path, pdf_password=None):
     headers = [f"{col}_{i}" if headers.count(col) > 1 else col for i, col in enumerate(headers)]
     return pd.DataFrame(data, columns=headers)
 
+# --- 2. XML GENERATOR ---
 def generate_tally_xml(df, main_ledger_name):
     suspense = "Suspense Account"
     envelope = ET.Element("ENVELOPE")
@@ -94,6 +98,7 @@ def generate_tally_xml(df, main_ledger_name):
 
     return ET.tostring(envelope, encoding="utf-8", xml_declaration=True)
 
+# --- 3. ROUTES ---
 @app.route('/')
 def index(): return render_template('index.html')
 
@@ -112,6 +117,22 @@ def check_lock():
         if os.path.exists(path): os.remove(path)
     return jsonify({'status': status})
 
+@app.route('/verify_password', methods=['POST'])
+def verify_password():
+    file = request.files['file']
+    password = request.form.get('password', '')
+    path = os.path.join(app.config['UPLOAD_FOLDER'], f"v_{secure_filename(file.filename)}")
+    file.save(path)
+    status = "invalid"
+    try:
+        with pdfplumber.open(path, password=password) as pdf:
+            _ = pdf.pages[0].extract_text()
+        status = "valid"
+    except Exception: status = "invalid"
+    finally:
+        if os.path.exists(path): os.remove(path)
+    return jsonify({'status': status})
+
 @app.route('/convert', methods=['POST'])
 def convert():
     try:
@@ -120,11 +141,7 @@ def convert():
         pdf_password = request.form.get('password', None)
         path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file.filename))
         file.save(path)
-        try:
-            df = parse_pdf_to_dataframe(path, pdf_password)
-        except ValueError as e:
-            if str(e) == "PASSWORD_REQUIRED": return jsonify({'status': 'password_required'}), 401
-            raise e
+        df = parse_pdf_to_dataframe(path, pdf_password)
         xml_data = generate_tally_xml(df, main_ledger)
         return send_file(io.BytesIO(xml_data), as_attachment=True, download_name=f"{os.path.splitext(file.filename)[0]}.xml")
     except Exception as e: return jsonify({'error': str(e)}), 500
